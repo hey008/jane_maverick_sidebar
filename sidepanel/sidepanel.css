@@ -1,0 +1,342 @@
+/* ── Reset & tokens ───────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:             #ffffff;
+  --surface:        #f3f2f1;
+  --surface-2:      #e8e6e4;
+  --border:         #d2d0ce;
+  --text:           #201f1e;
+  --text-muted:     #605e5c;
+  --accent:         #0078d4;
+  --accent-light:   #deecf9;
+  --accent-text:    #004578;
+  --btn-hover:      rgba(0, 0, 0, 0.06);
+  --danger:         #a4262c;
+
+  --toolbar-h:      44px;
+  --radius:         4px;
+  --transition:     0.15s ease;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:             #1e1e1e;
+    --surface:        #2d2d2d;
+    --surface-2:      #3a3a3a;
+    --border:         #404040;
+    --text:           #f8f8f8;
+    --text-muted:     #a0a0a0;
+    --accent:         #479ef5;
+    --accent-light:   #1a3a5c;
+    --accent-text:    #cce4ff;
+    --btn-hover:      rgba(255, 255, 255, 0.07);
+  }
+}
+
+/* ── Layout ───────────────────────────────────────────── */
+html, body {
+  height: 100%;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, system-ui, sans-serif;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--bg);
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Toolbar ──────────────────────────────────────────── */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: var(--toolbar-h);
+  padding: 6px 6px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.btn-group {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  flex-shrink: 0;
+}
+
+/* ── Icon buttons ─────────────────────────────────────── */
+.icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition), opacity var(--transition);
+  flex-shrink: 0;
+}
+
+.icon-btn svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+  pointer-events: none;
+}
+
+.icon-btn:hover:not(:disabled) { background: var(--btn-hover); }
+.icon-btn:active:not(:disabled) { background: var(--surface-2); }
+
+.icon-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.icon-btn.active {
+  background: var(--accent-light);
+  color: var(--accent);
+}
+
+.icon-btn.active:hover {
+  background: var(--accent-light);
+  filter: brightness(0.95);
+}
+
+/* ── URL bar ──────────────────────────────────────────── */
+.url-wrap {
+  flex: 1;
+  min-width: 0;
+  padding: 0 2px;
+}
+
+.url-input {
+  display: block;
+  width: 100%;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 12px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color var(--transition), box-shadow var(--transition);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.url-input::placeholder { color: var(--text-muted); }
+
+.url-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.25);
+}
+
+/* ── Quick-sites bar ──────────────────────────────────── */
+.sites-bar {
+  display: flex;
+  align-items: center;
+  height: 40px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+/* Scrollable icon list */
+.sites-list {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 4px 4px 6px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  min-width: 0;
+}
+.sites-list::-webkit-scrollbar { display: none; }
+
+/* Empty hint */
+.sites-empty {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  padding: 0 4px;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Each pinned site icon */
+.site-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background var(--transition);
+}
+
+.site-item:hover { background: var(--btn-hover); }
+
+/* Active: underline accent */
+.site-item.active { background: var(--accent-light); }
+.site-item.active::after {
+  content: '';
+  position: absolute;
+  bottom: 1px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 14px;
+  height: 2px;
+  background: var(--accent);
+  border-radius: 2px;
+}
+
+/* Favicon image */
+.site-favicon {
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+  object-fit: contain;
+  display: block;
+}
+
+/* Letter avatar (shown when favicon fails) */
+.site-letter {
+  display: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+/* × remove button — visible on hover */
+.site-remove {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1.5px solid var(--bg);
+  background: #c42b1c;
+  color: #fff;
+  font-size: 9px;
+  line-height: 1;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  z-index: 5;
+}
+.site-item:hover .site-remove { display: flex; }
+
+/* "+" add button — right edge of bar, outside scroll area */
+.sites-add-btn {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  margin: 0 4px;
+  border-left: 1px solid var(--border) !important;
+  border-radius: 0 4px 4px 0 !important;
+  color: var(--text-muted);
+}
+.sites-add-btn svg { width: 15px; height: 15px; }
+.sites-add-btn:hover { color: var(--accent); }
+
+/* ── Mobile badge ─────────────────────────────────────── */
+.mobile-badge {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 10px;
+  background: var(--accent-light);
+  color: var(--accent-text);
+  font-size: 11px;
+  font-weight: 500;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.mobile-badge svg {
+  width: 11px;
+  height: 11px;
+  fill: currentColor;
+  flex-shrink: 0;
+}
+
+body.mobile-mode .mobile-badge { display: flex; }
+
+/* ── Browser area ─────────────────────────────────────── */
+.browser-area {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Normal mode: iframe fills the panel */
+.frame-shell {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+#browser-frame {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+/* ── Mobile mode ──────────────────────────────────────── */
+body.mobile-mode .browser-area {
+  background: #111;
+  overflow: auto;
+  justify-content: center;
+}
+
+body.mobile-mode .frame-shell {
+  /* Phone viewport: 390 × 844 (iPhone 14 Pro logical px) */
+  width: 390px;
+  min-width: 390px;
+  height: 844px;
+  min-height: 844px;
+  flex: none;
+  border-radius: 12px;
+  overflow: hidden;
+  margin: 12px auto;
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.12),
+    0 8px 40px rgba(0, 0, 0, 0.7);
+  align-self: flex-start;
+}
+
+body.mobile-mode #browser-frame {
+  width: 390px;
+  height: 844px;
+  border-radius: 12px;
+}
