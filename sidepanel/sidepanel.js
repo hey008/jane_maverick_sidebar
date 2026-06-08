@@ -84,8 +84,10 @@ const RESET_QUICK_SITES = [
   currentTabId = tabs[0]?.id ?? null;
 
   const stored = await chrome.storage.local.get({
-    [tabUrlKey(currentTabId)]: 'https://welovephuket.com'
+    [tabUrlKey(currentTabId)]: 'https://welovephuket.com',
+    showDefaultInBar: true
   });
+  _showDefaultInBar = stored.showDefaultInBar;
 
   await renderSitesBar();
   switchToSlot('main', stored[tabUrlKey(currentTabId)]);
