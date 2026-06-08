@@ -71,9 +71,9 @@ const RESET_QUICK_SITES = [
   { url: 'https://facebook.com',          hostname: 'facebook.com',      title: 'Facebook',      favicon: faviconUrl('facebook.com') },
   { url: 'https://www.instagram.com',     hostname: 'www.instagram.com', title: 'Instagram',     favicon: faviconUrl('www.instagram.com') },
   { url: 'https://www.tiktok.com',        hostname: 'www.tiktok.com',    title: 'TikTok',        favicon: faviconUrl('www.tiktok.com') },
-  { url: 'https://x.com',                hostname: 'x.com',             title: 'X',             favicon: faviconUrl('x.com') },
   { url: 'https://www.linkedin.com',      hostname: 'www.linkedin.com',  title: 'LinkedIn',      favicon: faviconUrl('www.linkedin.com') },
   { type: 'separator' },
+  { url: 'https://translate.google.com',  hostname: 'translate.google.com', title: 'Google Translate', favicon: faviconUrl('translate.google.com') },
   { url: 'https://www.reddit.com',        hostname: 'www.reddit.com',    title: 'Reddit',        favicon: faviconUrl('www.reddit.com') },
   { url: 'https://www.blognone.com',      hostname: 'www.blognone.com',  title: 'Blognone',      favicon: faviconUrl('www.blognone.com') },
 ];
@@ -391,16 +391,21 @@ manageList.addEventListener('drop', async (e) => {
   const row = e.target.closest('[data-drag-idx]');
   _clearDragOver();
   if (!row || _dragSrcIdx === null) return;
+
+  // Capture before any await — dragend fires between awaits and resets _dragSrcIdx
+  const srcIdx    = _dragSrcIdx;
+  _dragSrcIdx     = null;
   const targetIdx = +row.dataset.dragIdx;
-  if (targetIdx === _dragSrcIdx) { _dragSrcIdx = null; return; }
+  if (targetIdx === srcIdx) return;
+
   const { top, height } = row.getBoundingClientRect();
   const above = e.clientY < top + height / 2;
   let insertAt = above ? targetIdx : targetIdx + 1;
+
   const { quickSites = [] } = await chrome.storage.local.get({ quickSites: [] });
-  const [moved] = quickSites.splice(_dragSrcIdx, 1);
-  if (_dragSrcIdx < insertAt) insertAt--;
+  const [moved] = quickSites.splice(srcIdx, 1);
+  if (srcIdx < insertAt) insertAt--;
   quickSites.splice(insertAt, 0, moved);
-  _dragSrcIdx = null;
   await chrome.storage.local.set({ quickSites });
   renderSitesBar();
   renderManagePanel();

@@ -175,7 +175,7 @@ body {
   width: 28px;
   height: 1px;
   background: var(--border);
-  margin: 3px 0;
+  margin: 8px 0;
   flex-shrink: 0;
 }
 
