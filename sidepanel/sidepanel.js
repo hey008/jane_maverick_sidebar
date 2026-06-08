@@ -361,6 +361,7 @@ async function removeSite(idx, hostname) {
 let _dragSrcIdx = null;
 let _dragOverEl = null;
 let _defaultSitesExpanded = true;
+let _showDefaultInBar     = true;
 
 function _clearDragOver() {
   if (_dragOverEl) {
