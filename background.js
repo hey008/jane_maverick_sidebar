@@ -7,6 +7,7 @@ const MOBILE_UA =
 
 const RULE_XFRAME    = 1;
 const RULE_MOBILE_UA = 2;
+const RULE_SECFETCH  = 3;
 
 // ── Toolbar button opens the side panel ───────────────
 chrome.sidePanel
@@ -15,10 +16,10 @@ chrome.sidePanel
 
 // ── On install / update ────────────────────────────────
 chrome.runtime.onInstalled.addListener(() => {
-  // X-Frame-Options + CSP bypass so the iframe can load any site
   chrome.declarativeNetRequest.updateDynamicRules({
-    removeRuleIds: [RULE_XFRAME, RULE_MOBILE_UA],
+    removeRuleIds: [RULE_XFRAME, RULE_MOBILE_UA, RULE_SECFETCH],
     addRules: [
+      // Strip X-Frame-Options + CSP so the browser doesn't block cross-origin embedding
       {
         id: RULE_XFRAME,
         priority: 1,
@@ -30,6 +31,26 @@ chrome.runtime.onInstalled.addListener(() => {
           ]
         },
         condition: { resourceTypes: ['main_frame', 'sub_frame'] }
+      },
+      // Override Sec-Fetch-* request headers so servers (e.g. Google) don't
+      // detect the iframe context and return 403. We make the request look like
+      // a normal top-level browser navigation instead of an embedded iframe load.
+      {
+        id: RULE_SECFETCH,
+        priority: 1,
+        action: {
+          type: 'modifyHeaders',
+          requestHeaders: [
+            { header: 'Sec-Fetch-Dest', operation: 'set', value: 'document' },
+            { header: 'Sec-Fetch-Mode', operation: 'set', value: 'navigate' },
+            { header: 'Sec-Fetch-Site', operation: 'set', value: 'none' },
+            { header: 'Sec-Fetch-User', operation: 'set', value: '?1' }
+          ]
+        },
+        condition: {
+          initiatorDomains: [chrome.runtime.id],
+          resourceTypes: ['main_frame', 'sub_frame']
+        }
       }
     ]
   });
