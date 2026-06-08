@@ -62,7 +62,7 @@ const DEFAULT_SITES = [
 // ── Default quick-sites preset (used by "Reset to default") ────
 const RESET_QUICK_SITES = [
   { url: 'https://web.whatsapp.com',      hostname: 'web.whatsapp.com',  title: 'WhatsApp',      favicon: faviconUrl('web.whatsapp.com') },
-  { url: 'https://facebook.com/messages', hostname: 'facebook.com',      title: 'Messenger',     favicon: faviconUrl('facebook.com') },
+  { url: 'https://www.messenger.com',      hostname: 'www.messenger.com', title: 'Messenger',     favicon: faviconUrl('www.messenger.com') },
   { type: 'separator' },
   { url: 'https://youtube.com',           hostname: 'youtube.com',       title: 'YouTube',       favicon: faviconUrl('youtube.com') },
   { url: 'https://music.youtube.com',     hostname: 'music.youtube.com', title: 'YouTube Music', favicon: faviconUrl('music.youtube.com') },
