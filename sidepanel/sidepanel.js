@@ -14,6 +14,7 @@ const sitesEmpty      = document.getElementById('sites-empty');
 const managePanel     = document.getElementById('manage-panel');
 const manageList      = document.getElementById('manage-list');
 const btnManageClose  = document.getElementById('btn-manage-close');
+const btnResetSites   = document.getElementById('btn-reset-sites');
 
 // ── Frame pool ─────────────────────────────────────────
 // Each slot (keyed by hostname or 'main') owns one <iframe>.
@@ -29,15 +30,51 @@ let currentTabId = null;
 
 function tabUrlKey(id) { return id ? `tabUrl_${id}` : 'tabUrl_default'; }
 
+// ── Favicon helpers ────────────────────────────────────
+function faviconUrl(hostname) {
+  return `https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://${hostname}&size=128`;
+}
+
+function attachFaviconFallback(img, hostname, letter) {
+  let stage = 0;
+  img.addEventListener('error', () => {
+    if (stage === 0) {
+      stage = 1;
+      img.src = `https://${hostname}/favicon.ico`;
+    } else {
+      img.style.display = 'none';
+      letter.style.display = 'flex';
+    }
+  });
+}
+
 // ── Default sites (always shown, cannot be removed) ────
 const DEFAULT_SITES = [
   {
     url:       'https://welovephuket.com',
     hostname:  'welovephuket.com',
     title:     'We Love Phuket',
-    favicon:   'https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://welovephuket.com&size=128',
+    favicon:   faviconUrl('welovephuket.com'),
     isDefault: true
   }
+];
+
+// ── Default quick-sites preset (used by "Reset to default") ────
+const RESET_QUICK_SITES = [
+  { url: 'https://web.whatsapp.com',      hostname: 'web.whatsapp.com',  title: 'WhatsApp',      favicon: faviconUrl('web.whatsapp.com') },
+  { url: 'https://facebook.com/messages', hostname: 'facebook.com',      title: 'Messenger',     favicon: faviconUrl('facebook.com') },
+  { type: 'separator' },
+  { url: 'https://youtube.com',           hostname: 'youtube.com',       title: 'YouTube',       favicon: faviconUrl('youtube.com') },
+  { url: 'https://music.youtube.com',     hostname: 'music.youtube.com', title: 'YouTube Music', favicon: faviconUrl('music.youtube.com') },
+  { type: 'separator' },
+  { url: 'https://facebook.com',          hostname: 'facebook.com',      title: 'Facebook',      favicon: faviconUrl('facebook.com') },
+  { url: 'https://www.instagram.com',     hostname: 'www.instagram.com', title: 'Instagram',     favicon: faviconUrl('www.instagram.com') },
+  { url: 'https://www.tiktok.com',        hostname: 'www.tiktok.com',    title: 'TikTok',        favicon: faviconUrl('www.tiktok.com') },
+  { url: 'https://x.com',                hostname: 'x.com',             title: 'X',             favicon: faviconUrl('x.com') },
+  { url: 'https://www.linkedin.com',      hostname: 'www.linkedin.com',  title: 'LinkedIn',      favicon: faviconUrl('www.linkedin.com') },
+  { type: 'separator' },
+  { url: 'https://www.reddit.com',        hostname: 'www.reddit.com',    title: 'Reddit',        favicon: faviconUrl('www.reddit.com') },
+  { url: 'https://www.blognone.com',      hostname: 'www.blognone.com',  title: 'Blognone',      favicon: faviconUrl('www.blognone.com') },
 ];
 
 // ── Init ───────────────────────────────────────────────
@@ -193,26 +230,6 @@ btnNewTab.addEventListener('click', () => {
 });
 
 // ── Quick-sites bar ────────────────────────────────────
-
-// faviconV2 fetches directly from the site — much more reliable than s2/favicons
-// for web apps (WhatsApp, Gmail, etc.) that Google's crawler rarely visits.
-function faviconUrl(hostname) {
-  return `https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://${hostname}&size=128`;
-}
-
-function attachFaviconFallback(img, hostname, letter) {
-  let stage = 0;
-  img.addEventListener('error', () => {
-    if (stage === 0) {
-      stage = 1;
-      img.src = `https://${hostname}/favicon.ico`;
-    } else {
-      img.style.display = 'none';
-      letter.style.display = 'flex';
-    }
-  });
-}
-
 function hostColor(hostname) {
   let h = 0;
   for (const ch of hostname) h = ((h << 5) - h + ch.charCodeAt(0)) | 0;
@@ -269,20 +286,31 @@ function buildSiteItem(site, idx) {
   return item;
 }
 
+function makeSeparatorEl() {
+  const el = document.createElement('div');
+  el.className = 'sites-separator';
+  return el;
+}
+
 async function renderSitesBar() {
   const { quickSites = [] } = await chrome.storage.local.get({ quickSites: [] });
-  sitesList.querySelectorAll('.site-item').forEach(el => el.remove());
 
-  // DEFAULT_SITES first (index -1 so removeSite is never called on them)
+  // Clear all children except the empty hint
+  [...sitesList.children].forEach(el => { if (el !== sitesEmpty) el.remove(); });
+
   DEFAULT_SITES.forEach(site => sitesList.appendChild(buildSiteItem(site, -1)));
+  sitesList.appendChild(makeSeparatorEl());
 
-  const sep = document.createElement('div');
-  sep.className = 'sites-separator';
-  sitesList.appendChild(sep);
+  const userSites = quickSites.filter(s => s.type !== 'separator');
+  sitesEmpty.style.display = userSites.length === 0 ? '' : 'none';
 
-  // User-pinned sites after
-  sitesEmpty.style.display = quickSites.length === 0 ? '' : 'none';
-  quickSites.forEach((site, idx) => sitesList.appendChild(buildSiteItem(site, idx)));
+  quickSites.forEach((site, idx) => {
+    if (site.type === 'separator') {
+      sitesList.appendChild(makeSeparatorEl());
+    } else {
+      sitesList.appendChild(buildSiteItem(site, idx));
+    }
+  });
 
   updateActiveSite();
   updateSlotIndicators();
@@ -342,52 +370,79 @@ async function renderManagePanel() {
   const { quickSites = [] } = await chrome.storage.local.get({ quickSites: [] });
   manageList.innerHTML = '';
 
-  const allSites = [
-    ...DEFAULT_SITES,
-    ...quickSites.map((s, idx) => ({ ...s, idx }))
-  ];
+  // Default sites (locked)
+  DEFAULT_SITES.forEach(site => manageList.appendChild(buildManageRow(site, -1)));
 
-  allSites.forEach(site => {
-    const row = document.createElement('div');
-    row.className = 'manage-item';
+  // Separator between default and user sites
+  manageList.appendChild(buildManageSeparator());
 
-    const img = document.createElement('img');
-    img.className = 'manage-item-favicon';
-    img.src = faviconUrl(site.hostname);
-    img.alt = '';
-    img.draggable = false;
-
-    const letter = document.createElement('span');
-    letter.className = 'manage-item-letter';
-    letter.textContent = (site.hostname[0] || '?').toUpperCase();
-    letter.style.background = hostColor(site.hostname);
-    attachFaviconFallback(img, site.hostname, letter);
-
-    const title = document.createElement('span');
-    title.className = 'manage-item-title';
-    title.textContent = site.title;
-
-    let action;
-    if (site.isDefault) {
-      action = document.createElement('span');
-      action.className = 'manage-item-lock';
-      action.title = 'Default site — cannot be removed';
-      action.innerHTML = '<svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>';
+  // User quick sites (with separators)
+  quickSites.forEach((site, idx) => {
+    if (site.type === 'separator') {
+      manageList.appendChild(buildManageSeparator());
     } else {
-      action = document.createElement('button');
-      action.className = 'manage-item-remove';
-      action.title = 'Remove from Sidebar';
-      action.setAttribute('aria-label', `Remove ${site.title}`);
-      action.innerHTML = '<svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>';
-      action.addEventListener('click', async () => {
-        await removeSite(site.idx, site.hostname);
-        renderManagePanel();
-      });
+      manageList.appendChild(buildManageRow({ ...site, idx }));
     }
-
-    row.append(img, letter, title, action);
-    manageList.appendChild(row);
   });
+}
+
+function buildManageSeparator() {
+  const el = document.createElement('div');
+  el.className = 'manage-separator';
+  return el;
+}
+
+function buildManageRow(site) {
+  const row = document.createElement('div');
+  row.className = 'manage-item';
+
+  const img = document.createElement('img');
+  img.className = 'manage-item-favicon';
+  img.src = faviconUrl(site.hostname);
+  img.alt = '';
+  img.draggable = false;
+
+  const letter = document.createElement('span');
+  letter.className = 'manage-item-letter';
+  letter.textContent = (site.hostname[0] || '?').toUpperCase();
+  letter.style.background = hostColor(site.hostname);
+  attachFaviconFallback(img, site.hostname, letter);
+
+  const title = document.createElement('span');
+  title.className = 'manage-item-title';
+  title.textContent = site.title;
+
+  let action;
+  if (site.isDefault) {
+    action = document.createElement('span');
+    action.className = 'manage-item-lock';
+    action.title = 'Default site — cannot be removed';
+    action.innerHTML = '<svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>';
+  } else {
+    action = document.createElement('button');
+    action.className = 'manage-item-remove';
+    action.title = 'Remove from Sidebar';
+    action.setAttribute('aria-label', `Remove ${site.title}`);
+    action.innerHTML = '<svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>';
+    action.addEventListener('click', async () => {
+      await removeSite(site.idx, site.hostname);
+      renderManagePanel();
+    });
+  }
+
+  row.append(img, letter, title, action);
+  return row;
+}
+
+async function resetToDefaultSites() {
+  await chrome.storage.local.set({ quickSites: RESET_QUICK_SITES });
+  // Destroy all slots except main
+  slots.forEach((slot, key) => {
+    if (key !== 'main') { slot.iframe.remove(); slots.delete(key); }
+  });
+  if (activeKey !== 'main') switchToSlot('main', 'https://welovephuket.com');
+  renderSitesBar();
+  renderManagePanel();
 }
 
 btnSettings.addEventListener('click', () => {
@@ -396,6 +451,7 @@ btnSettings.addEventListener('click', () => {
 });
 
 btnManageClose.addEventListener('click', closeManagePanel);
+btnResetSites.addEventListener('click', resetToDefaultSites);
 
 // ── Context menu ───────────────────────────────────────
 const ctxMenu     = document.getElementById('site-ctx-menu');

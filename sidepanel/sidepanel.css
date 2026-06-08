@@ -454,3 +454,35 @@ body {
   height: 16px;
   fill: currentColor;
 }
+
+.manage-separator {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 14px;
+  flex-shrink: 0;
+}
+
+.manage-footer {
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.manage-reset-btn {
+  width: 100%;
+  padding: 7px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition), border-color var(--transition);
+}
+
+.manage-reset-btn:hover {
+  background: rgba(196, 43, 28, 0.08);
+  color: #c42b1c;
+  border-color: rgba(196, 43, 28, 0.3);
+}
