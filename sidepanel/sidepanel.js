@@ -301,8 +301,10 @@ async function renderSitesBar() {
   // Clear all children except the empty hint
   [...sitesList.children].forEach(el => { if (el !== sitesEmpty) el.remove(); });
 
-  DEFAULT_SITES.forEach(site => sitesList.appendChild(buildSiteItem(site, -1)));
-  sitesList.appendChild(makeSeparatorEl());
+  if (_showDefaultInBar) {
+    DEFAULT_SITES.forEach(site => sitesList.appendChild(buildSiteItem(site, -1)));
+    sitesList.appendChild(makeSeparatorEl());
+  }
 
   const userSites = quickSites.filter(s => s.type !== 'separator');
   sitesEmpty.style.display = userSites.length === 0 ? '' : 'none';
