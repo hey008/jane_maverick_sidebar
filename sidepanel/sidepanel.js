@@ -276,6 +276,10 @@ async function renderSitesBar() {
   // DEFAULT_SITES first (index -1 so removeSite is never called on them)
   DEFAULT_SITES.forEach(site => sitesList.appendChild(buildSiteItem(site, -1)));
 
+  const sep = document.createElement('div');
+  sep.className = 'sites-separator';
+  sitesList.appendChild(sep);
+
   // User-pinned sites after
   sitesEmpty.style.display = quickSites.length === 0 ? '' : 'none';
   quickSites.forEach((site, idx) => sitesList.appendChild(buildSiteItem(site, idx)));

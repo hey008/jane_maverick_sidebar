@@ -170,6 +170,15 @@ body {
 /* Empty hint — invisible placeholder (tooltip on hover via title attr) */
 .sites-empty { display: none; }
 
+/* Separator between default and user-added sites */
+.sites-separator {
+  width: 28px;
+  height: 1px;
+  background: var(--border);
+  margin: 3px 0;
+  flex-shrink: 0;
+}
+
 /* Each pinned site icon */
 .site-item {
   position: relative;
