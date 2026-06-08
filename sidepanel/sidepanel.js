@@ -35,7 +35,7 @@ const DEFAULT_SITES = [
     url:       'https://welovephuket.com',
     hostname:  'welovephuket.com',
     title:     'We Love Phuket',
-    favicon:   'https://www.google.com/s2/favicons?domain=welovephuket.com&sz=32',
+    favicon:   'https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://welovephuket.com&size=128',
     isDefault: true
   }
 ];
@@ -193,6 +193,26 @@ btnNewTab.addEventListener('click', () => {
 });
 
 // ── Quick-sites bar ────────────────────────────────────
+
+// faviconV2 fetches directly from the site — much more reliable than s2/favicons
+// for web apps (WhatsApp, Gmail, etc.) that Google's crawler rarely visits.
+function faviconUrl(hostname) {
+  return `https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://${hostname}&size=128`;
+}
+
+function attachFaviconFallback(img, hostname, letter) {
+  let stage = 0;
+  img.addEventListener('error', () => {
+    if (stage === 0) {
+      stage = 1;
+      img.src = `https://${hostname}/favicon.ico`;
+    } else {
+      img.style.display = 'none';
+      letter.style.display = 'flex';
+    }
+  });
+}
+
 function hostColor(hostname) {
   let h = 0;
   for (const ch of hostname) h = ((h << 5) - h + ch.charCodeAt(0)) | 0;
@@ -210,7 +230,7 @@ function buildSiteItem(site, idx) {
 
   const img = document.createElement('img');
   img.className = 'site-favicon';
-  img.src = site.favicon;
+  img.src = faviconUrl(site.hostname);
   img.alt = '';
   img.draggable = false;
 
@@ -219,7 +239,7 @@ function buildSiteItem(site, idx) {
   letter.textContent = (site.hostname[0] || '?').toUpperCase();
   letter.style.background = hostColor(site.hostname);
   letter.style.display = 'none';
-  img.addEventListener('error', () => { img.style.display = 'none'; letter.style.display = 'flex'; });
+  attachFaviconFallback(img, site.hostname, letter);
 
   // Green running dot
   const dot = document.createElement('span');
@@ -329,7 +349,7 @@ async function renderManagePanel() {
 
     const img = document.createElement('img');
     img.className = 'manage-item-favicon';
-    img.src = site.favicon;
+    img.src = faviconUrl(site.hostname);
     img.alt = '';
     img.draggable = false;
 
@@ -337,7 +357,7 @@ async function renderManagePanel() {
     letter.className = 'manage-item-letter';
     letter.textContent = (site.hostname[0] || '?').toUpperCase();
     letter.style.background = hostColor(site.hostname);
-    img.addEventListener('error', () => { img.style.display = 'none'; letter.style.display = 'flex'; });
+    attachFaviconFallback(img, site.hostname, letter);
 
     const title = document.createElement('span');
     title.className = 'manage-item-title';
@@ -430,7 +450,7 @@ async function addCurrentSite() {
   let title = hostname;
   try { title = slot.iframe.contentWindow.document.title || hostname; } catch {}
 
-  const favicon = `https://www.google.com/s2/favicons?domain=${hostname}&sz=32`;
+  const favicon = faviconUrl(hostname);
   const { quickSites = [] } = await chrome.storage.local.get({ quickSites: [] });
   if (quickSites.some(s => s.hostname === hostname)) return;
 

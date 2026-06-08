@@ -78,7 +78,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   } catch { return; }
 
   const title   = tab.title || hostname;
-  const favicon = `https://www.google.com/s2/favicons?domain=${hostname}&sz=32`;
+  const favicon = `https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://${hostname}&size=128`;
 
   const { quickSites = [] } = await chrome.storage.local.get({ quickSites: [] });
   if (quickSites.some(s => s.hostname === hostname)) return; // already pinned
