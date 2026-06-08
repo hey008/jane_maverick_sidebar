@@ -49,17 +49,18 @@ Each browser tab has its own last-visited URL in the sidebar. Switching tabs res
 
 ### Manage Sites
 Click the **⚙ gear icon** in the toolbar to open the Manage Sites panel:
-- Lists all pinned sites with their favicons
-- **We Love Phuket** (the default site) shows a lock icon — cannot be removed
-- User-added sites have a trash button to remove them individually
-- **Reset to default sites** button at the bottom restores a curated preset:
-  - WhatsApp · Messenger
-  - YouTube · YouTube Music
-  - Facebook · Instagram · TikTok · X · LinkedIn
-  - Reddit · Blognone
+
+| Element | Behaviour |
+|---|---|
+| **Default Sites** section | Always shown; cannot be reordered or removed |
+| Eye icon on default site row | Toggles the default site's visibility in the pinned bar (preference persists) |
+| Lock icon on default site row | Indicates the site cannot be removed |
+| User-added sites | Edit URL (pencil), remove (trash), or drag to reorder via the ⠿ handle |
+| **+ Add Separator** | Inserts a draggable separator between groups |
+| **Reset to default sites** | Restores the curated 14-site preset (WhatsApp · Messenger / YouTube · YouTube Music / Facebook · Instagram · TikTok · X · LinkedIn / Reddit · Blognone) |
 
 ### Site Separators
-Drag-free visual separators divide the icon bar into groups, matching the groups in the default preset.
+Thin visual dividers group related icons in the pinned bar. Add, remove, or drag them freely in Manage Sites.
 
 ### Embedding Any Website
 - Automatically removes `X-Frame-Options` and `Content-Security-Policy` response headers so sites that normally block embedding load correctly
