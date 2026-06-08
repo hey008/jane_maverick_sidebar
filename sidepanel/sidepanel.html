@@ -58,14 +58,8 @@
 
   <!-- ── Browser frame + right sites bar ───────────────── -->
   <main class="browser-area">
-    <div class="frame-shell" id="frame-shell">
-      <iframe
-        id="browser-frame"
-        src="about:blank"
-        allow="fullscreen; autoplay; camera; microphone"
-        title="Sidebar browser"
-      ></iframe>
-    </div>
+    <!-- iframes are created dynamically in sidepanel.js (one per slot) -->
+    <div class="frame-shell" id="frame-shell"></div>
 
     <!-- Quick-sites icon bar — right column -->
     <nav class="sites-bar" id="sites-bar" aria-label="Pinned sites">

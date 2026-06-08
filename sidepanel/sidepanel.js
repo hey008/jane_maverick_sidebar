@@ -1,7 +1,7 @@
 'use strict';
 
 // ── Element refs ───────────────────────────────────────
-const frame       = document.getElementById('browser-frame');
+const frameShell  = document.getElementById('frame-shell');
 const urlInput    = document.getElementById('url-input');
 const btnBack     = document.getElementById('btn-back');
 const btnForward  = document.getElementById('btn-forward');
@@ -13,30 +13,29 @@ const btnAddSite  = document.getElementById('btn-add-site');
 const sitesList   = document.getElementById('sites-list');
 const sitesEmpty  = document.getElementById('sites-empty');
 
-// ── Navigation state ───────────────────────────────────
-let navHistory  = [];
-let historyIdx  = -1;
-let currentUrl  = '';
-let isMobile    = false;
-let isPinned    = false;
-let currentTabId = null;   // resolved once in init
+// ── Frame pool ─────────────────────────────────────────
+// Each slot (keyed by hostname or 'main') owns one <iframe>.
+// Inactive slots use visibility:hidden so audio/video keeps running.
+//
+//   slot = { iframe, url, history: string[], histIdx: number }
+//
+const slots   = new Map();
+let activeKey = null;
 
-// ── Per-tab storage key ────────────────────────────────
-// Each browser tab gets its own sidebar URL so switching tabs never
-// clobbers another tab's browsing session.
-function tabUrlKey(tabId) {
-  return tabId ? `tabUrl_${tabId}` : 'tabUrl_default';
-}
+// ── Shared state ───────────────────────────────────────
+let currentTabId = null;
+let isMobile     = false;
+let isPinned     = false;
+
+function tabUrlKey(id) { return id ? `tabUrl_${id}` : 'tabUrl_default'; }
 
 // ── Init ───────────────────────────────────────────────
 (async function init() {
-  // Resolve which tab this panel belongs to
   const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
   currentTabId = tabs[0]?.id ?? null;
-  const urlKey = tabUrlKey(currentTabId);
 
   const stored = await chrome.storage.local.get({
-    [urlKey]:   'https://www.google.com',
+    [tabUrlKey(currentTabId)]: 'https://www.google.com',
     mobileMode: false,
     pinned:     false
   });
@@ -47,8 +46,57 @@ function tabUrlKey(tabId) {
   applyPinState();
 
   await renderSitesBar();
-  navigate(stored[urlKey]);
+  switchToSlot('main', stored[tabUrlKey(currentTabId)]);
 })();
+
+// ── Slot management ────────────────────────────────────
+
+function createSlot(key, url) {
+  const iframe = document.createElement('iframe');
+  iframe.className = 'browser-frame';
+  iframe.allow = 'fullscreen; autoplay; camera; microphone';
+
+  const slot = { iframe, url: url || 'about:blank', history: [url || 'about:blank'], histIdx: 0 };
+  slots.set(key, slot);
+  frameShell.appendChild(iframe);
+
+  // Sync URL bar when this slot navigates internally (same-origin only)
+  iframe.addEventListener('load', () => {
+    if (activeKey !== key) return;
+    try {
+      const loc = iframe.contentWindow.location.href;
+      if (loc && loc !== 'about:blank' && loc !== slot.url) {
+        slot.url = loc;
+        urlInput.value = loc;
+        chrome.storage.local.set({ [tabUrlKey(currentTabId)]: loc });
+        updateActiveSite();
+      }
+    } catch {
+      // Cross-origin: location inaccessible, keep last known URL
+    }
+  });
+
+  iframe.src = url || 'about:blank';
+  return slot;
+}
+
+function switchToSlot(key, initialUrl) {
+  // Hide every slot
+  slots.forEach(s => s.iframe.classList.remove('active'));
+
+  // Get or create the target slot
+  const slot = slots.get(key) ?? createSlot(key, initialUrl);
+
+  // Reveal it
+  slot.iframe.classList.add('active');
+  activeKey = key;
+
+  urlInput.value = slot.url !== 'about:blank' ? slot.url : '';
+  syncNavButtons();
+  updateActiveSite();
+}
+
+function activeSlot() { return slots.get(activeKey); }
 
 // ── URL normalization ──────────────────────────────────
 function normalizeUrl(raw) {
@@ -60,46 +108,62 @@ function normalizeUrl(raw) {
   return 'https://www.google.com/search?q=' + encodeURIComponent(s);
 }
 
-// ── Core navigate ──────────────────────────────────────
+// ── Navigate (active slot) ─────────────────────────────
 function navigate(url, push = true) {
   if (!url) return;
-  currentUrl = url;
+  const slot = activeSlot();
+  if (!slot) return;
+
+  slot.url = url;
+  slot.iframe.src = url;
   urlInput.value = url;
-  frame.src = url;
 
   if (push) {
-    navHistory = navHistory.slice(0, historyIdx + 1);
-    navHistory.push(url);
-    historyIdx = navHistory.length - 1;
+    slot.history = slot.history.slice(0, slot.histIdx + 1);
+    slot.history.push(url);
+    slot.histIdx = slot.history.length - 1;
   }
 
-  updateNavButtons();
+  syncNavButtons();
   updateActiveSite();
-  // Save URL under this tab's own key so other tabs are unaffected
   chrome.storage.local.set({ [tabUrlKey(currentTabId)]: url });
 }
 
-function updateNavButtons() {
-  btnBack.disabled    = historyIdx <= 0;
-  btnForward.disabled = historyIdx >= navHistory.length - 1;
+function syncNavButtons() {
+  const slot = activeSlot();
+  btnBack.disabled    = !slot || slot.histIdx <= 0;
+  btnForward.disabled = !slot || slot.histIdx >= slot.history.length - 1;
 }
 
 // ── Toolbar: nav buttons ───────────────────────────────
 btnBack.addEventListener('click', () => {
-  if (historyIdx > 0) {
-    historyIdx--;
-    navigate(navHistory[historyIdx], false);
-  }
+  const slot = activeSlot();
+  if (!slot || slot.histIdx <= 0) return;
+  slot.histIdx--;
+  const url = slot.history[slot.histIdx];
+  slot.url = url;
+  slot.iframe.src = url;
+  urlInput.value = url;
+  syncNavButtons();
+  updateActiveSite();
 });
 
 btnForward.addEventListener('click', () => {
-  if (historyIdx < navHistory.length - 1) {
-    historyIdx++;
-    navigate(navHistory[historyIdx], false);
-  }
+  const slot = activeSlot();
+  if (!slot || slot.histIdx >= slot.history.length - 1) return;
+  slot.histIdx++;
+  const url = slot.history[slot.histIdx];
+  slot.url = url;
+  slot.iframe.src = url;
+  urlInput.value = url;
+  syncNavButtons();
+  updateActiveSite();
 });
 
-btnRefresh.addEventListener('click', () => { frame.src = frame.src; });
+btnRefresh.addEventListener('click', () => {
+  const slot = activeSlot();
+  if (slot) slot.iframe.src = slot.iframe.src;
+});
 
 // ── Toolbar: URL bar ───────────────────────────────────
 urlInput.addEventListener('keydown', (e) => {
@@ -109,7 +173,8 @@ urlInput.addEventListener('keydown', (e) => {
     urlInput.blur();
   }
   if (e.key === 'Escape') {
-    urlInput.value = currentUrl;
+    const slot = activeSlot();
+    urlInput.value = slot?.url ?? '';
     urlInput.blur();
   }
 });
@@ -123,15 +188,13 @@ function applyMobileState(reload = true) {
   btnMobile.setAttribute('aria-pressed', String(isMobile));
   chrome.storage.local.set({ mobileMode: isMobile });
   chrome.runtime.sendMessage({ type: 'SET_MOBILE_UA', enabled: isMobile });
-  if (reload && currentUrl) {
-    setTimeout(() => { frame.src = currentUrl; }, 80);
+  if (reload) {
+    const slot = activeSlot();
+    if (slot?.url) setTimeout(() => { slot.iframe.src = slot.url; }, 80);
   }
 }
 
-btnMobile.addEventListener('click', () => {
-  isMobile = !isMobile;
-  applyMobileState(true);
-});
+btnMobile.addEventListener('click', () => { isMobile = !isMobile; applyMobileState(true); });
 
 // ── Pin sidebar ────────────────────────────────────────
 function applyPinState() {
@@ -147,28 +210,11 @@ btnPin.addEventListener('click', () => {
 
 // ── Open in new tab ────────────────────────────────────
 btnNewTab.addEventListener('click', () => {
-  if (currentUrl && currentUrl !== 'about:blank') {
-    chrome.tabs.create({ url: currentUrl });
-  }
-});
-
-// ── Frame load: sync URL bar for same-origin navigation ─
-frame.addEventListener('load', () => {
-  try {
-    const loc = frame.contentWindow.location.href;
-    if (loc && loc !== 'about:blank' && loc !== currentUrl) {
-      currentUrl = loc;
-      urlInput.value = loc;
-      chrome.storage.local.set({ [tabUrlKey(currentTabId)]: loc });
-      updateActiveSite();
-    }
-  } catch {
-    // Cross-origin: keep last known URL
-  }
+  const slot = activeSlot();
+  if (slot?.url && slot.url !== 'about:blank') chrome.tabs.create({ url: slot.url });
 });
 
 // ── Quick-sites bar ────────────────────────────────────
-
 function hostColor(hostname) {
   let h = 0;
   for (const ch of hostname) h = ((h << 5) - h + ch.charCodeAt(0)) | 0;
@@ -177,7 +223,6 @@ function hostColor(hostname) {
 
 async function renderSitesBar() {
   const { quickSites = [] } = await chrome.storage.local.get({ quickSites: [] });
-
   sitesList.querySelectorAll('.site-item').forEach(el => el.remove());
   sitesEmpty.style.display = quickSites.length === 0 ? '' : 'none';
 
@@ -185,8 +230,6 @@ async function renderSitesBar() {
     const item = document.createElement('div');
     item.className = 'site-item';
     item.title = site.title;
-    item.dataset.idx = idx;
-    item.dataset.url = site.url;
     item.dataset.hostname = site.hostname;
 
     const img = document.createElement('img');
@@ -200,24 +243,18 @@ async function renderSitesBar() {
     letter.textContent = (site.hostname[0] || '?').toUpperCase();
     letter.style.background = hostColor(site.hostname);
     letter.style.display = 'none';
-
-    img.addEventListener('error', () => {
-      img.style.display = 'none';
-      letter.style.display = 'flex';
-    });
+    img.addEventListener('error', () => { img.style.display = 'none'; letter.style.display = 'flex'; });
 
     const removeBtn = document.createElement('button');
     removeBtn.className = 'site-remove';
     removeBtn.innerHTML = '&times;';
     removeBtn.title = 'Remove from sidebar';
     removeBtn.setAttribute('aria-label', `Remove ${site.title}`);
-    removeBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      removeSite(idx);
-    });
+    removeBtn.addEventListener('click', (e) => { e.stopPropagation(); removeSite(idx, site.hostname); });
 
     item.append(img, letter, removeBtn);
-    item.addEventListener('click', () => navigate(site.url));
+    // Clicking switches to this site's dedicated slot — other slots keep running
+    item.addEventListener('click', () => switchToSlot(site.hostname, site.url));
     sitesList.appendChild(item);
   });
 
@@ -225,33 +262,42 @@ async function renderSitesBar() {
 }
 
 function updateActiveSite() {
+  const slot = activeSlot();
   let currentHostname = '';
-  try { currentHostname = new URL(currentUrl).hostname; } catch {}
+  try { currentHostname = new URL(slot?.url ?? '').hostname; } catch {}
   sitesList.querySelectorAll('.site-item').forEach(item => {
     item.classList.toggle('active', item.dataset.hostname === currentHostname);
   });
 }
 
-async function removeSite(idx) {
+async function removeSite(idx, hostname) {
   const { quickSites = [] } = await chrome.storage.local.get({ quickSites: [] });
   quickSites.splice(idx, 1);
   await chrome.storage.local.set({ quickSites });
+
+  // Destroy the slot's iframe to free its resources
+  const slot = slots.get(hostname);
+  if (slot) { slot.iframe.remove(); slots.delete(hostname); }
+
+  // If this was the active slot, fall back to main
+  if (activeKey === hostname) switchToSlot('main', 'https://www.google.com');
   renderSitesBar();
 }
 
 async function addCurrentSite() {
-  if (!currentUrl || currentUrl === 'about:blank') return;
+  const slot = activeSlot();
+  const url = slot?.url;
+  if (!url || url === 'about:blank') return;
 
   let origin, hostname;
   try {
-    const parsed = new URL(currentUrl);
+    const parsed = new URL(url);
     if (!['http:', 'https:'].includes(parsed.protocol)) return;
-    origin   = parsed.origin;
-    hostname = parsed.hostname;
+    origin = parsed.origin; hostname = parsed.hostname;
   } catch { return; }
 
   let title = hostname;
-  try { title = frame.contentWindow.document.title || hostname; } catch {}
+  try { title = slot.iframe.contentWindow.document.title || hostname; } catch {}
 
   const favicon = `https://www.google.com/s2/favicons?domain=${hostname}&sz=32`;
   const { quickSites = [] } = await chrome.storage.local.get({ quickSites: [] });
@@ -267,13 +313,3 @@ btnAddSite.addEventListener('click', addCurrentSite);
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'local' && changes.quickSites) renderSitesBar();
 });
-
-// ── Resource cleanup ───────────────────────────────────
-// We do NOT clear the iframe on pagehide because pagehide fires on every tab
-// switch (not just explicit panel close), which would wipe the current page
-// whenever the user changes tabs.
-//
-// When the user explicitly closes the panel ("Close Sidebar Browser" button),
-// Chrome destroys the panel page entirely — the iframe and all its resources
-// (audio, video, network, CPU) are freed automatically by the browser.
-// No manual cleanup is needed or appropriate here.

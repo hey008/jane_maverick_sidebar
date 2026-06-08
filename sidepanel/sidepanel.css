@@ -292,17 +292,25 @@ body.mobile-mode .mobile-badge { display: flex; }
   position: relative;
 }
 
-/* Normal mode: iframe fills the panel */
+/* Normal mode: frame-shell is the stacking context for all iframes */
 .frame-shell {
   flex: 1;
-  display: flex;
+  position: relative;   /* iframes stack absolutely inside here */
   overflow: hidden;
 }
 
-#browser-frame {
+/* Every iframe slot — hidden but ALIVE (visibility keeps audio/video running) */
+.browser-frame {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   border: none;
+  visibility: hidden;   /* NOT display:none — hidden preserves media playback */
+}
+
+.browser-frame.active {
+  visibility: visible;
 }
 
 /* ── Mobile mode ──────────────────────────────────────── */
@@ -328,7 +336,7 @@ body.mobile-mode .frame-shell {
   align-self: flex-start;
 }
 
-body.mobile-mode #browser-frame {
+body.mobile-mode .browser-frame.active {
   width: 390px;
   height: 844px;
   border-radius: 12px;
