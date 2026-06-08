@@ -14,16 +14,29 @@ const sitesList   = document.getElementById('sites-list');
 const sitesEmpty  = document.getElementById('sites-empty');
 
 // ── Navigation state ───────────────────────────────────
-let navHistory = [];
-let historyIdx = -1;
-let currentUrl = '';
-let isMobile   = false;
-let isPinned   = false;
+let navHistory  = [];
+let historyIdx  = -1;
+let currentUrl  = '';
+let isMobile    = false;
+let isPinned    = false;
+let currentTabId = null;   // resolved once in init
+
+// ── Per-tab storage key ────────────────────────────────
+// Each browser tab gets its own sidebar URL so switching tabs never
+// clobbers another tab's browsing session.
+function tabUrlKey(tabId) {
+  return tabId ? `tabUrl_${tabId}` : 'tabUrl_default';
+}
 
 // ── Init ───────────────────────────────────────────────
 (async function init() {
+  // Resolve which tab this panel belongs to
+  const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+  currentTabId = tabs[0]?.id ?? null;
+  const urlKey = tabUrlKey(currentTabId);
+
   const stored = await chrome.storage.local.get({
-    lastUrl:    'https://www.google.com',
+    [urlKey]:   'https://www.google.com',
     mobileMode: false,
     pinned:     false
   });
@@ -34,7 +47,7 @@ let isPinned   = false;
   applyPinState();
 
   await renderSitesBar();
-  navigate(stored.lastUrl);
+  navigate(stored[urlKey]);
 })();
 
 // ── URL normalization ──────────────────────────────────
@@ -62,7 +75,8 @@ function navigate(url, push = true) {
 
   updateNavButtons();
   updateActiveSite();
-  chrome.storage.local.set({ lastUrl: url });
+  // Save URL under this tab's own key so other tabs are unaffected
+  chrome.storage.local.set({ [tabUrlKey(currentTabId)]: url });
 }
 
 function updateNavButtons() {
@@ -145,6 +159,7 @@ frame.addEventListener('load', () => {
     if (loc && loc !== 'about:blank' && loc !== currentUrl) {
       currentUrl = loc;
       urlInput.value = loc;
+      chrome.storage.local.set({ [tabUrlKey(currentTabId)]: loc });
       updateActiveSite();
     }
   } catch {
@@ -154,18 +169,15 @@ frame.addEventListener('load', () => {
 
 // ── Quick-sites bar ────────────────────────────────────
 
-/** Consistent letter-avatar color derived from hostname */
 function hostColor(hostname) {
   let h = 0;
   for (const ch of hostname) h = ((h << 5) - h + ch.charCodeAt(0)) | 0;
   return `hsl(${((Math.abs(h) % 36) * 10)}, 55%, 42%)`;
 }
 
-/** Render the full sites bar from storage */
 async function renderSitesBar() {
   const { quickSites = [] } = await chrome.storage.local.get({ quickSites: [] });
 
-  // Remove old site items (keep the empty hint node in the list)
   sitesList.querySelectorAll('.site-item').forEach(el => el.remove());
   sitesEmpty.style.display = quickSites.length === 0 ? '' : 'none';
 
@@ -177,14 +189,12 @@ async function renderSitesBar() {
     item.dataset.url = site.url;
     item.dataset.hostname = site.hostname;
 
-    // Favicon <img>
     const img = document.createElement('img');
     img.className = 'site-favicon';
     img.src = site.favicon;
     img.alt = '';
     img.draggable = false;
 
-    // Letter avatar (shown when favicon fails)
     const letter = document.createElement('span');
     letter.className = 'site-letter';
     letter.textContent = (site.hostname[0] || '?').toUpperCase();
@@ -196,7 +206,6 @@ async function renderSitesBar() {
       letter.style.display = 'flex';
     });
 
-    // × remove button
     const removeBtn = document.createElement('button');
     removeBtn.className = 'site-remove';
     removeBtn.innerHTML = '&times;';
@@ -215,17 +224,14 @@ async function renderSitesBar() {
   updateActiveSite();
 }
 
-/** Highlight the icon whose hostname matches the current URL */
 function updateActiveSite() {
   let currentHostname = '';
   try { currentHostname = new URL(currentUrl).hostname; } catch {}
-
   sitesList.querySelectorAll('.site-item').forEach(item => {
     item.classList.toggle('active', item.dataset.hostname === currentHostname);
   });
 }
 
-/** Remove a site by index and re-render */
 async function removeSite(idx) {
   const { quickSites = [] } = await chrome.storage.local.get({ quickSites: [] });
   quickSites.splice(idx, 1);
@@ -233,7 +239,6 @@ async function removeSite(idx) {
   renderSitesBar();
 }
 
-/** Add the site currently loaded in the iframe */
 async function addCurrentSite() {
   if (!currentUrl || currentUrl === 'about:blank') return;
 
@@ -245,14 +250,12 @@ async function addCurrentSite() {
     hostname = parsed.hostname;
   } catch { return; }
 
-  // Try to read the page title (works same-origin)
   let title = hostname;
   try { title = frame.contentWindow.document.title || hostname; } catch {}
 
   const favicon = `https://www.google.com/s2/favicons?domain=${hostname}&sz=32`;
-
   const { quickSites = [] } = await chrome.storage.local.get({ quickSites: [] });
-  if (quickSites.some(s => s.hostname === hostname)) return; // already pinned
+  if (quickSites.some(s => s.hostname === hostname)) return;
 
   quickSites.push({ url: origin, hostname, title, favicon });
   await chrome.storage.local.set({ quickSites });
@@ -261,13 +264,16 @@ async function addCurrentSite() {
 
 btnAddSite.addEventListener('click', addCurrentSite);
 
-// Re-render the bar when another context (e.g. context menu click) adds a site
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'local' && changes.quickSites) renderSitesBar();
 });
 
-// When the panel is closed, stop the iframe immediately so the process exits
-// cleanly in Chrome Task Manager (no lingering audio/video/network/CPU).
-window.addEventListener('pagehide', () => {
-  frame.src = 'about:blank';
-});
+// ── Resource cleanup ───────────────────────────────────
+// We do NOT clear the iframe on pagehide because pagehide fires on every tab
+// switch (not just explicit panel close), which would wipe the current page
+// whenever the user changes tabs.
+//
+// When the user explicitly closes the panel ("Close Sidebar Browser" button),
+// Chrome destroys the panel page entirely — the iframe and all its resources
+// (audio, video, network, CPU) are freed automatically by the browser.
+// No manual cleanup is needed or appropriate here.

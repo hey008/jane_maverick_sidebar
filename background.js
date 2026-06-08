@@ -71,6 +71,11 @@ chrome.tabs.onActivated.addListener(async ({ tabId }) => {
   if (pinned) chrome.sidePanel.open({ tabId }).catch(() => {});
 });
 
+// ── Clean up per-tab URL key when a tab is closed ──────
+chrome.tabs.onRemoved.addListener((tabId) => {
+  chrome.storage.local.remove(`tabUrl_${tabId}`);
+});
+
 // ── Context menu click → save site to quick-sites list ─
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (info.menuItemId !== 'add-to-sidebar' || !tab?.url) return;
