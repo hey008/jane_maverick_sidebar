@@ -412,26 +412,92 @@ function buildManageRow(site) {
   title.className = 'manage-item-title';
   title.textContent = site.title;
 
-  let action;
   if (site.isDefault) {
-    action = document.createElement('span');
-    action.className = 'manage-item-lock';
-    action.title = 'Default site — cannot be removed';
-    action.innerHTML = '<svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>';
+    const lock = document.createElement('span');
+    lock.className = 'manage-item-lock';
+    lock.title = 'Default site — cannot be removed';
+    lock.innerHTML = '<svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>';
+    row.append(img, letter, title, lock);
   } else {
-    action = document.createElement('button');
-    action.className = 'manage-item-remove';
-    action.title = 'Remove from Sidebar';
-    action.setAttribute('aria-label', `Remove ${site.title}`);
-    action.innerHTML = '<svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>';
-    action.addEventListener('click', async () => {
+    const editBtn = document.createElement('button');
+    editBtn.className = 'manage-item-edit';
+    editBtn.title = 'Edit URL';
+    editBtn.setAttribute('aria-label', `Edit ${site.title}`);
+    editBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>';
+    editBtn.addEventListener('click', () => enterEditMode(row, site));
+
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'manage-item-remove';
+    removeBtn.title = 'Remove from Sidebar';
+    removeBtn.setAttribute('aria-label', `Remove ${site.title}`);
+    removeBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>';
+    removeBtn.addEventListener('click', async () => {
       await removeSite(site.idx, site.hostname);
       renderManagePanel();
     });
+
+    row.append(img, letter, title, editBtn, removeBtn);
   }
 
-  row.append(img, letter, title, action);
   return row;
+}
+
+function enterEditMode(row, site) {
+  row.innerHTML = '';
+  row.classList.add('manage-item--editing');
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'manage-edit-input';
+  input.value = site.url;
+
+  const saveBtn = document.createElement('button');
+  saveBtn.className = 'manage-edit-save';
+  saveBtn.title = 'Save';
+  saveBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
+
+  const cancelBtn = document.createElement('button');
+  cancelBtn.className = 'manage-edit-cancel';
+  cancelBtn.title = 'Cancel';
+  cancelBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>';
+
+  const doSave = () => saveEditedSite(site.idx, input.value.trim());
+  const doCancel = () => renderManagePanel();
+
+  saveBtn.addEventListener('click', doSave);
+  cancelBtn.addEventListener('click', doCancel);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter')  { e.preventDefault(); doSave(); }
+    if (e.key === 'Escape') { e.preventDefault(); doCancel(); }
+  });
+
+  row.append(input, saveBtn, cancelBtn);
+  input.focus();
+  input.select();
+}
+
+async function saveEditedSite(idx, rawUrl) {
+  if (!rawUrl) return;
+  const normalized = normalizeUrl(rawUrl);
+  if (!normalized) return;
+  let hostname;
+  try {
+    const parsed = new URL(normalized);
+    if (!['http:', 'https:'].includes(parsed.protocol)) return;
+    hostname = parsed.hostname;
+  } catch { return; }
+
+  const { quickSites = [] } = await chrome.storage.local.get({ quickSites: [] });
+  const site = quickSites[idx];
+  if (!site || site.type === 'separator') return;
+
+  site.url      = normalized;
+  site.hostname = hostname;
+  site.favicon  = faviconUrl(hostname);
+
+  await chrome.storage.local.set({ quickSites });
+  renderSitesBar();
+  renderManagePanel();
 }
 
 async function resetToDefaultSites() {
