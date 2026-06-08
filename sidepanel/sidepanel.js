@@ -566,11 +566,11 @@ async function addCurrentSite() {
   const url = slot?.url;
   if (!url || url === 'about:blank') return;
 
-  let origin, hostname;
+  let hostname;
   try {
     const parsed = new URL(url);
     if (!['http:', 'https:'].includes(parsed.protocol)) return;
-    origin = parsed.origin; hostname = parsed.hostname;
+    hostname = parsed.hostname;
   } catch { return; }
 
   let title = hostname;
@@ -580,7 +580,7 @@ async function addCurrentSite() {
   const { quickSites = [] } = await chrome.storage.local.get({ quickSites: [] });
   if (quickSites.some(s => s.hostname === hostname)) return;
 
-  quickSites.push({ url: origin, hostname, title, favicon });
+  quickSites.push({ url, hostname, title, favicon });
   await chrome.storage.local.set({ quickSites });
   renderSitesBar();
 }

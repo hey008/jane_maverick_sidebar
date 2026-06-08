@@ -68,12 +68,11 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (info.menuItemId !== 'add-to-sidebar' || !tab?.url) return;
 
-  let origin, hostname;
+  let hostname;
   try {
     const parsed = new URL(tab.url);
     // Skip internal browser pages
     if (!['http:', 'https:'].includes(parsed.protocol)) return;
-    origin   = parsed.origin;
     hostname = parsed.hostname;
   } catch { return; }
 
@@ -83,7 +82,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   const { quickSites = [] } = await chrome.storage.local.get({ quickSites: [] });
   if (quickSites.some(s => s.hostname === hostname)) return; // already pinned
 
-  quickSites.push({ url: origin, hostname, title, favicon });
+  quickSites.push({ url: tab.url, hostname, title, favicon });
   chrome.storage.local.set({ quickSites });
 });
 
