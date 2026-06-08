@@ -50,25 +50,13 @@
     </div>
   </header>
 
-  <!-- ── Quick-sites icon bar ──────────────────────────── -->
-  <nav class="sites-bar" id="sites-bar" aria-label="Pinned sites">
-    <div class="sites-list" id="sites-list">
-      <span class="sites-empty" id="sites-empty">
-        Right-click any page → "Add to Sidebar"
-      </span>
-    </div>
-    <button class="icon-btn sites-add-btn" id="btn-add-site" title="Add current page to sidebar" aria-label="Add current page">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-    </button>
-  </nav>
-
   <!-- ── Mobile view label ───────────────────────────── -->
   <div class="mobile-badge" id="mobile-badge" aria-live="polite">
     <svg viewBox="0 0 24 24"><path d="M17 1.01L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 19H7V5h10v14z"/></svg>
     Mobile view — 390 × 844 px (iPhone 14 Pro)
   </div>
 
-  <!-- ── Browser frame ───────────────────────────────── -->
+  <!-- ── Browser frame + right sites bar ───────────────── -->
   <main class="browser-area">
     <div class="frame-shell" id="frame-shell">
       <iframe
@@ -78,6 +66,16 @@
         title="Sidebar browser"
       ></iframe>
     </div>
+
+    <!-- Quick-sites icon bar — right column -->
+    <nav class="sites-bar" id="sites-bar" aria-label="Pinned sites">
+      <div class="sites-list" id="sites-list">
+        <span class="sites-empty" id="sites-empty" title="Right-click any page → Add to Sidebar"></span>
+      </div>
+      <button class="icon-btn sites-add-btn" id="btn-add-site" title="Add current page to sidebar" aria-label="Add current page">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+      </button>
+    </nav>
   </main>
 
   <script src="sidepanel.js"></script>

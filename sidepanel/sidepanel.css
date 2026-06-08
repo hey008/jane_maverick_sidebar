@@ -143,39 +143,32 @@ body {
   box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.25);
 }
 
-/* ── Quick-sites bar ──────────────────────────────────── */
+/* ── Quick-sites bar (right vertical column) ──────────── */
 .sites-bar {
   display: flex;
-  align-items: center;
-  height: 40px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
+  flex-direction: column;
+  width: 44px;
   flex-shrink: 0;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
 }
 
-/* Scrollable icon list */
+/* Scrollable icon list — vertical */
 .sites-list {
   flex: 1;
   display: flex;
+  flex-direction: column;
   align-items: center;
   gap: 2px;
-  padding: 4px 4px 4px 6px;
-  overflow-x: auto;
-  overflow-y: hidden;
+  padding: 6px 4px 4px;
+  overflow-y: auto;
+  overflow-x: hidden;
   scrollbar-width: none;
-  min-width: 0;
 }
 .sites-list::-webkit-scrollbar { display: none; }
 
-/* Empty hint */
-.sites-empty {
-  font-size: 10.5px;
-  color: var(--text-muted);
-  white-space: nowrap;
-  padding: 0 4px;
-  pointer-events: none;
-  user-select: none;
-}
+/* Empty hint — invisible placeholder (tooltip on hover via title attr) */
+.sites-empty { display: none; }
 
 /* Each pinned site icon */
 .site-item {
@@ -183,8 +176,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: 34px;
+  height: 34px;
   border-radius: 6px;
   cursor: pointer;
   flex-shrink: 0;
@@ -193,18 +186,18 @@ body {
 
 .site-item:hover { background: var(--btn-hover); }
 
-/* Active: underline accent */
+/* Active: left-edge accent bar */
 .site-item.active { background: var(--accent-light); }
 .site-item.active::after {
   content: '';
   position: absolute;
-  bottom: 1px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 14px;
-  height: 2px;
+  left: 0px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 2px;
+  height: 16px;
   background: var(--accent);
-  border-radius: 2px;
+  border-radius: 0 2px 2px 0;
 }
 
 /* Favicon image */
@@ -253,14 +246,14 @@ body {
 }
 .site-item:hover .site-remove { display: flex; }
 
-/* "+" add button — right edge of bar, outside scroll area */
+/* "+" add button — bottom of the right column */
 .sites-add-btn {
   flex-shrink: 0;
-  width: 30px;
-  height: 30px;
-  margin: 0 4px;
-  border-left: 1px solid var(--border) !important;
-  border-radius: 0 4px 4px 0 !important;
+  width: 34px;
+  height: 34px;
+  margin: 4px auto;
+  border-top: 1px solid var(--border) !important;
+  border-radius: 4px !important;
   color: var(--text-muted);
 }
 .sites-add-btn svg { width: 15px; height: 15px; }
