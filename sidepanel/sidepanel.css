@@ -310,31 +310,6 @@ body {
 .sites-add-btn svg { width: 15px; height: 15px; }
 .sites-add-btn:hover { color: var(--accent); }
 
-/* ── Mobile badge ─────────────────────────────────────── */
-.mobile-badge {
-  display: none;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  height: 24px;
-  padding: 0 10px;
-  background: var(--accent-light);
-  color: var(--accent-text);
-  font-size: 11px;
-  font-weight: 500;
-  flex-shrink: 0;
-  border-bottom: 1px solid var(--border);
-}
-
-.mobile-badge svg {
-  width: 11px;
-  height: 11px;
-  fill: currentColor;
-  flex-shrink: 0;
-}
-
-body.mobile-mode .mobile-badge { display: flex; }
-
 /* ── Browser area ─────────────────────────────────────── */
 .browser-area {
   flex: 1;
@@ -362,35 +337,6 @@ body.mobile-mode .mobile-badge { display: flex; }
 
 .browser-frame.active {
   visibility: visible;
-}
-
-/* ── Mobile mode ──────────────────────────────────────── */
-body.mobile-mode .browser-area {
-  background: #111;
-  overflow: auto;
-  justify-content: center;
-}
-
-body.mobile-mode .frame-shell {
-  /* Phone viewport: 390 × 844 (iPhone 14 Pro logical px) */
-  width: 390px;
-  min-width: 390px;
-  height: 844px;
-  min-height: 844px;
-  flex: none;
-  border-radius: 12px;
-  overflow: hidden;
-  margin: 12px auto;
-  box-shadow:
-    0 0 0 1px rgba(255,255,255,0.12),
-    0 8px 40px rgba(0, 0, 0, 0.7);
-  align-self: flex-start;
-}
-
-body.mobile-mode .browser-frame.active {
-  width: 390px;
-  height: 844px;
-  border-radius: 12px;
 }
 
 /* ── Manage panel ─────────────────────────────────────── */

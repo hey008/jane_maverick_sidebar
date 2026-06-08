@@ -1,13 +1,7 @@
 'use strict';
 
-const MOBILE_UA =
-  'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) ' +
-  'AppleWebKit/605.1.15 (KHTML, like Gecko) ' +
-  'Version/17.0 Mobile/15E148 Safari/604.1';
-
-const RULE_XFRAME    = 1;
-const RULE_MOBILE_UA = 2;
-const RULE_SECFETCH  = 3;
+const RULE_XFRAME   = 1;
+const RULE_SECFETCH = 3;
 
 // ── Toolbar button opens the side panel ───────────────
 chrome.sidePanel
@@ -17,7 +11,7 @@ chrome.sidePanel
 // ── On install / update ────────────────────────────────
 chrome.runtime.onInstalled.addListener(() => {
   chrome.declarativeNetRequest.updateDynamicRules({
-    removeRuleIds: [RULE_XFRAME, RULE_MOBILE_UA, RULE_SECFETCH],
+    removeRuleIds: [RULE_XFRAME, RULE_SECFETCH],
     addRules: [
       // Strip X-Frame-Options + CSP so the browser doesn't block cross-origin embedding
       {
@@ -65,12 +59,6 @@ chrome.runtime.onInstalled.addListener(() => {
   });
 });
 
-// ── Auto-open panel on tab switch when pinned ──────────
-chrome.tabs.onActivated.addListener(async ({ tabId }) => {
-  const { pinned } = await chrome.storage.local.get({ pinned: false });
-  if (pinned) chrome.sidePanel.open({ tabId }).catch(() => {});
-});
-
 // ── Clean up per-tab URL key when a tab is closed ──────
 chrome.tabs.onRemoved.addListener((tabId) => {
   chrome.storage.local.remove(`tabUrl_${tabId}`);
@@ -99,40 +87,3 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   chrome.storage.local.set({ quickSites });
 });
 
-// ── Messages from side panel ───────────────────────────
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (message.type === 'SET_MOBILE_UA') {
-    setMobileUARule(message.enabled)
-      .then(() => sendResponse({ ok: true }))
-      .catch(() => sendResponse({ ok: false }));
-    return true;
-  }
-
-  if (message.type === 'SET_PINNED') {
-    chrome.storage.local.set({ pinned: message.enabled });
-    sendResponse({ ok: true });
-  }
-});
-
-// ── Mobile UA declarativeNetRequest rule ───────────────
-async function setMobileUARule(enabled) {
-  await chrome.declarativeNetRequest.updateDynamicRules({
-    removeRuleIds: [RULE_MOBILE_UA],
-    addRules: enabled
-      ? [{
-          id: RULE_MOBILE_UA,
-          priority: 2,
-          action: {
-            type: 'modifyHeaders',
-            requestHeaders: [
-              { header: 'User-Agent', operation: 'set', value: MOBILE_UA }
-            ]
-          },
-          condition: {
-            initiatorDomains: [chrome.runtime.id],
-            resourceTypes: ['main_frame', 'sub_frame']
-          }
-        }]
-      : []
-  });
-}

@@ -6,8 +6,6 @@ const urlInput        = document.getElementById('url-input');
 const btnBack         = document.getElementById('btn-back');
 const btnForward      = document.getElementById('btn-forward');
 const btnRefresh      = document.getElementById('btn-refresh');
-const btnMobile       = document.getElementById('btn-mobile');
-const btnPin          = document.getElementById('btn-pin');
 const btnNewTab       = document.getElementById('btn-new-tab');
 const btnAddSite      = document.getElementById('btn-add-site');
 const btnSettings     = document.getElementById('btn-settings');
@@ -28,8 +26,6 @@ let activeKey = null;
 
 // ── Shared state ───────────────────────────────────────
 let currentTabId = null;
-let isMobile     = false;
-let isPinned     = false;
 
 function tabUrlKey(id) { return id ? `tabUrl_${id}` : 'tabUrl_default'; }
 
@@ -50,15 +46,8 @@ const DEFAULT_SITES = [
   currentTabId = tabs[0]?.id ?? null;
 
   const stored = await chrome.storage.local.get({
-    [tabUrlKey(currentTabId)]: 'https://www.google.com',
-    mobileMode: false,
-    pinned:     false
+    [tabUrlKey(currentTabId)]: 'https://welovephuket.com'
   });
-
-  isMobile = stored.mobileMode;
-  isPinned = stored.pinned;
-  applyMobileState(false);
-  applyPinState();
 
   await renderSitesBar();
   switchToSlot('main', stored[tabUrlKey(currentTabId)]);
@@ -197,33 +186,6 @@ urlInput.addEventListener('keydown', (e) => {
 
 urlInput.addEventListener('focus', () => urlInput.select());
 
-// ── Mobile view ────────────────────────────────────────
-function applyMobileState(reload = true) {
-  document.body.classList.toggle('mobile-mode', isMobile);
-  btnMobile.classList.toggle('active', isMobile);
-  btnMobile.setAttribute('aria-pressed', String(isMobile));
-  chrome.storage.local.set({ mobileMode: isMobile });
-  chrome.runtime.sendMessage({ type: 'SET_MOBILE_UA', enabled: isMobile });
-  if (reload) {
-    const slot = activeSlot();
-    if (slot?.url) setTimeout(() => { slot.iframe.src = slot.url; }, 80);
-  }
-}
-
-btnMobile.addEventListener('click', () => { isMobile = !isMobile; applyMobileState(true); });
-
-// ── Pin sidebar ────────────────────────────────────────
-function applyPinState() {
-  btnPin.classList.toggle('active', isPinned);
-  btnPin.setAttribute('aria-pressed', String(isPinned));
-}
-
-btnPin.addEventListener('click', () => {
-  isPinned = !isPinned;
-  applyPinState();
-  chrome.runtime.sendMessage({ type: 'SET_PINNED', enabled: isPinned });
-});
-
 // ── Open in new tab ────────────────────────────────────
 btnNewTab.addEventListener('click', () => {
   const slot = activeSlot();
@@ -324,7 +286,7 @@ function forceCloseSlot(hostname) {
   if (!slot) return;
   slot.iframe.remove();
   slots.delete(hostname);
-  if (activeKey === hostname) switchToSlot('main', 'https://www.google.com');
+  if (activeKey === hostname) switchToSlot('main', 'https://welovephuket.com');
   updateSlotIndicators();
 }
 
@@ -335,7 +297,7 @@ async function removeSite(idx, hostname) {
   await chrome.storage.local.set({ quickSites });
   const slot = slots.get(hostname);
   if (slot) { slot.iframe.remove(); slots.delete(hostname); }
-  if (activeKey === hostname) switchToSlot('main', 'https://www.google.com');
+  if (activeKey === hostname) switchToSlot('main', 'https://welovephuket.com');
   renderSitesBar();
 }
 
