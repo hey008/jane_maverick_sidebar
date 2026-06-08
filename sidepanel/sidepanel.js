@@ -360,6 +360,7 @@ async function removeSite(idx, hostname) {
 // Drag-and-drop state — managed by container-level delegation
 let _dragSrcIdx = null;
 let _dragOverEl = null;
+let _defaultSitesExpanded = true;
 
 function _clearDragOver() {
   if (_dragOverEl) {
