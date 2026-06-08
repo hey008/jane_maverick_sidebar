@@ -527,23 +527,9 @@ body {
 .manage-section-header {
   display: flex;
   align-items: center;
-  gap: 4px;
   padding: 6px 14px 4px;
-  cursor: pointer;
-  user-select: none;
   color: var(--text-muted);
 }
-.manage-section-header:hover { color: var(--text); }
-
-.manage-section-chevron {
-  width: 14px;
-  height: 14px;
-  fill: currentColor;
-  flex-shrink: 0;
-  transition: transform 0.15s ease;
-  transform: rotate(0deg);
-}
-.manage-section-chevron.expanded { transform: rotate(90deg); }
 
 .manage-section-label {
   font-size: 11px;
@@ -565,9 +551,9 @@ body {
   opacity: 0;
   transition: opacity 0.15s, color 0.15s;
 }
-.manage-section-header:hover .manage-section-vis-btn { opacity: 1; }
+.manage-item:hover .manage-section-vis-btn { opacity: 1; }
 .manage-section-vis-btn:hover { color: var(--text); background: var(--hover); }
-.manage-section-vis-btn.hidden { opacity: 1; color: var(--text-muted); }
+.manage-section-vis-btn.hidden { opacity: 1; }
 .manage-section-vis-btn svg {
   width: 15px;
   height: 15px;
