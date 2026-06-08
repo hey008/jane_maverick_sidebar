@@ -453,8 +453,24 @@ async function renderManagePanel() {
   const { quickSites = [] } = await chrome.storage.local.get({ quickSites: [] });
   manageList.innerHTML = '';
 
-  // Default sites — locked, not draggable
-  DEFAULT_SITES.forEach(site => manageList.appendChild(buildManageRow(site, -1)));
+  // Default sites — collapsible section header
+  const sectionHeader = document.createElement('div');
+  sectionHeader.className = 'manage-section-header';
+  sectionHeader.title = _defaultSitesExpanded ? 'Hide default sites' : 'Show default sites';
+  sectionHeader.innerHTML = `
+    <svg class="manage-section-chevron${_defaultSitesExpanded ? ' expanded' : ''}" viewBox="0 0 24 24">
+      <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/>
+    </svg>
+    <span class="manage-section-label">Default Sites</span>`;
+  sectionHeader.addEventListener('click', () => {
+    _defaultSitesExpanded = !_defaultSitesExpanded;
+    renderManagePanel();
+  });
+  manageList.appendChild(sectionHeader);
+
+  if (_defaultSitesExpanded) {
+    DEFAULT_SITES.forEach(site => manageList.appendChild(buildManageRow(site, -1)));
+  }
 
   // Visual divider (not interactive)
   const divider = document.createElement('div');
