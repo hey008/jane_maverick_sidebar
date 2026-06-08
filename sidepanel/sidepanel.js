@@ -10,14 +10,12 @@ const btnMobile       = document.getElementById('btn-mobile');
 const btnPin          = document.getElementById('btn-pin');
 const btnNewTab       = document.getElementById('btn-new-tab');
 const btnAddSite      = document.getElementById('btn-add-site');
-const btnToggleView   = document.getElementById('btn-toggle-view');
-const toggleViewIcon  = document.getElementById('toggle-view-icon');
+const btnSettings     = document.getElementById('btn-settings');
 const sitesList       = document.getElementById('sites-list');
 const sitesEmpty      = document.getElementById('sites-empty');
-
-// SVG paths for the view-toggle button
-const ICON_GRID   = 'M4 8h4V4H4v4zm6 12h4v-4h-4v4zm-6 0h4v-4H4v4zm0-6h4v-4H4v4zm6 0h4v-4h-4v4zm6-10v4h4V4h-4zm-6 4h4V4h-4v4zm6 6h4v-4h-4v4zm0 6h4v-4h-4v4z';
-const ICON_BROWSER = 'M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V8h16v10z';
+const managePanel     = document.getElementById('manage-panel');
+const manageList      = document.getElementById('manage-list');
+const btnManageClose  = document.getElementById('btn-manage-close');
 
 // ── Frame pool ─────────────────────────────────────────
 // Each slot (keyed by hostname or 'main') owns one <iframe>.
@@ -32,7 +30,6 @@ let activeKey = null;
 let currentTabId = null;
 let isMobile     = false;
 let isPinned     = false;
-let isIconOnly   = false;
 
 function tabUrlKey(id) { return id ? `tabUrl_${id}` : 'tabUrl_default'; }
 
@@ -55,15 +52,13 @@ const DEFAULT_SITES = [
   const stored = await chrome.storage.local.get({
     [tabUrlKey(currentTabId)]: 'https://www.google.com',
     mobileMode: false,
-    pinned:     false,
-    viewMode:   'page'
+    pinned:     false
   });
 
   isMobile = stored.mobileMode;
   isPinned = stored.pinned;
   applyMobileState(false);
   applyPinState();
-  applyViewMode(stored.viewMode, false);
 
   await renderSitesBar();
   switchToSlot('main', stored[tabUrlKey(currentTabId)]);
@@ -229,25 +224,6 @@ btnPin.addEventListener('click', () => {
   chrome.runtime.sendMessage({ type: 'SET_PINNED', enabled: isPinned });
 });
 
-// ── View mode toggle (page ↔ icon grid) ────────────────
-function applyViewMode(mode, save = true) {
-  isIconOnly = mode === 'icons';
-  document.body.classList.toggle('icon-only', isIconOnly);
-  btnToggleView.classList.toggle('active', isIconOnly);
-  if (isIconOnly) {
-    toggleViewIcon.querySelector('path').setAttribute('d', ICON_BROWSER);
-    btnToggleView.title = 'Switch to page view';
-  } else {
-    toggleViewIcon.querySelector('path').setAttribute('d', ICON_GRID);
-    btnToggleView.title = 'Switch to icon view';
-  }
-  if (save) chrome.storage.local.set({ viewMode: mode });
-}
-
-btnToggleView.addEventListener('click', () => {
-  applyViewMode(isIconOnly ? 'page' : 'icons');
-});
-
 // ── Open in new tab ────────────────────────────────────
 btnNewTab.addEventListener('click', () => {
   const slot = activeSlot();
@@ -283,11 +259,6 @@ function buildSiteItem(site, idx) {
   letter.style.display = 'none';
   img.addEventListener('error', () => { img.style.display = 'none'; letter.style.display = 'flex'; });
 
-  // Label shown in icon-grid mode
-  const label = document.createElement('span');
-  label.className = 'site-label';
-  label.textContent = site.title;
-
   // Green running dot
   const dot = document.createElement('span');
   dot.className = 'slot-dot';
@@ -301,12 +272,10 @@ function buildSiteItem(site, idx) {
   closeBtn.setAttribute('aria-label', `Force close ${site.title}`);
   closeBtn.addEventListener('click', (e) => { e.stopPropagation(); forceCloseSlot(site.hostname); });
 
-  item.append(img, letter, label, dot, closeBtn);
+  item.append(img, letter, dot, closeBtn);
 
-  // Click: switch slot; if in icon-only mode also switch to page view
   item.addEventListener('click', () => {
     switchToSlot(site.hostname, site.url);
-    if (isIconOnly) applyViewMode('page');
   });
 
   // Right-click: context menu (default sites can't be removed)
@@ -369,6 +338,78 @@ async function removeSite(idx, hostname) {
   if (activeKey === hostname) switchToSlot('main', 'https://www.google.com');
   renderSitesBar();
 }
+
+// ── Manage panel ───────────────────────────────────────
+
+function openManagePanel() {
+  renderManagePanel();
+  managePanel.hidden = false;
+  btnSettings.classList.add('active');
+}
+
+function closeManagePanel() {
+  managePanel.hidden = true;
+  btnSettings.classList.remove('active');
+}
+
+async function renderManagePanel() {
+  const { quickSites = [] } = await chrome.storage.local.get({ quickSites: [] });
+  manageList.innerHTML = '';
+
+  const allSites = [
+    ...DEFAULT_SITES,
+    ...quickSites.map((s, idx) => ({ ...s, idx }))
+  ];
+
+  allSites.forEach(site => {
+    const row = document.createElement('div');
+    row.className = 'manage-item';
+
+    const img = document.createElement('img');
+    img.className = 'manage-item-favicon';
+    img.src = site.favicon;
+    img.alt = '';
+    img.draggable = false;
+
+    const letter = document.createElement('span');
+    letter.className = 'manage-item-letter';
+    letter.textContent = (site.hostname[0] || '?').toUpperCase();
+    letter.style.background = hostColor(site.hostname);
+    img.addEventListener('error', () => { img.style.display = 'none'; letter.style.display = 'flex'; });
+
+    const title = document.createElement('span');
+    title.className = 'manage-item-title';
+    title.textContent = site.title;
+
+    let action;
+    if (site.isDefault) {
+      action = document.createElement('span');
+      action.className = 'manage-item-lock';
+      action.title = 'Default site — cannot be removed';
+      action.innerHTML = '<svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>';
+    } else {
+      action = document.createElement('button');
+      action.className = 'manage-item-remove';
+      action.title = 'Remove from Sidebar';
+      action.setAttribute('aria-label', `Remove ${site.title}`);
+      action.innerHTML = '<svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>';
+      action.addEventListener('click', async () => {
+        await removeSite(site.idx, site.hostname);
+        renderManagePanel();
+      });
+    }
+
+    row.append(img, letter, title, action);
+    manageList.appendChild(row);
+  });
+}
+
+btnSettings.addEventListener('click', () => {
+  if (managePanel.hidden) openManagePanel();
+  else closeManagePanel();
+});
+
+btnManageClose.addEventListener('click', closeManagePanel);
 
 // ── Context menu ───────────────────────────────────────
 const ctxMenu     = document.getElementById('site-ctx-menu');
@@ -439,5 +480,8 @@ async function addCurrentSite() {
 btnAddSite.addEventListener('click', addCurrentSite);
 
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === 'local' && changes.quickSites) renderSitesBar();
+  if (area === 'local' && changes.quickSites) {
+    renderSitesBar();
+    if (!managePanel.hidden) renderManagePanel();
+  }
 });
