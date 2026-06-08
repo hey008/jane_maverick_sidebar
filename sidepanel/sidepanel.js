@@ -345,6 +345,7 @@ function forceCloseSlot(hostname) {
 
 /** Permanently remove site from bar and destroy its slot */
 async function removeSite(idx, hostname) {
+  if (idx < 0) return;
   const { quickSites = [] } = await chrome.storage.local.get({ quickSites: [] });
   quickSites.splice(idx, 1);
   await chrome.storage.local.set({ quickSites });
@@ -671,6 +672,7 @@ async function addCurrentSite() {
 
   const favicon = faviconUrl(hostname);
   const { quickSites = [] } = await chrome.storage.local.get({ quickSites: [] });
+  if (DEFAULT_SITES.some(s => s.hostname === hostname)) return;
   if (quickSites.some(s => s.hostname === hostname)) return;
 
   quickSites.push({ url, hostname, title, favicon });

@@ -79,7 +79,9 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   const title   = tab.title || hostname;
   const favicon = `https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://${hostname}&size=128`;
 
+  const PROTECTED = ['welovephuket.com'];
   const { quickSites = [] } = await chrome.storage.local.get({ quickSites: [] });
+  if (PROTECTED.includes(hostname)) return;
   if (quickSites.some(s => s.hostname === hostname)) return; // already pinned
 
   quickSites.push({ url: tab.url, hostname, title, favicon });
