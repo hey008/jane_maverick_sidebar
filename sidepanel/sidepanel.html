@@ -3,14 +3,20 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title></title>
+  <title>Jane's Sidebar</title>
   <link rel="stylesheet" href="sidepanel.css">
 </head>
 <body>
 
   <!-- ── Toolbar ────────────────────────────────────── -->
   <header class="toolbar" role="toolbar">
-    <div class="btn-group">
+
+    <!-- View toggle: switch between page view and icon-grid view -->
+    <button id="btn-toggle-view" class="icon-btn" title="Switch to icon view" aria-label="Toggle view mode">
+      <svg id="toggle-view-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h4V4H4v4zm6 12h4v-4h-4v4zm-6 0h4v-4H4v4zm0-6h4v-4H4v4zm6 0h4v-4h-4v4zm6-10v4h4V4h-4zm-6 4h4V4h-4v4zm6 6h4v-4h-4v4zm0 6h4v-4h-4v4z"/></svg>
+    </button>
+
+    <div class="btn-group nav-btns">
       <button id="btn-back" class="icon-btn" title="Back" aria-label="Back" disabled>
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
       </button>
@@ -35,15 +41,12 @@
     </div>
 
     <div class="btn-group">
-      <!-- Mobile view toggle -->
       <button id="btn-mobile" class="icon-btn toggle-btn" title="Toggle mobile view" aria-label="Toggle mobile view" aria-pressed="false">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 1.01L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 19H7V5h10v14z"/></svg>
       </button>
-      <!-- Pin sidebar -->
       <button id="btn-pin" class="icon-btn toggle-btn" title="Pin sidebar (auto-open on all tabs)" aria-label="Pin sidebar" aria-pressed="false">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
       </button>
-      <!-- Open current page in new tab -->
       <button id="btn-new-tab" class="icon-btn" title="Open in new tab" aria-label="Open in new tab">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></svg>
       </button>
@@ -58,10 +61,8 @@
 
   <!-- ── Browser frame + right sites bar ───────────────── -->
   <main class="browser-area">
-    <!-- iframes are created dynamically in sidepanel.js (one per slot) -->
     <div class="frame-shell" id="frame-shell"></div>
 
-    <!-- Quick-sites icon bar — right column -->
     <nav class="sites-bar" id="sites-bar" aria-label="Pinned sites">
       <div class="sites-list" id="sites-list">
         <span class="sites-empty" id="sites-empty" title="Right-click any page → Add to Sidebar"></span>

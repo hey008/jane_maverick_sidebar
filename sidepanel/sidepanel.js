@@ -1,17 +1,23 @@
 'use strict';
 
 // ── Element refs ───────────────────────────────────────
-const frameShell  = document.getElementById('frame-shell');
-const urlInput    = document.getElementById('url-input');
-const btnBack     = document.getElementById('btn-back');
-const btnForward  = document.getElementById('btn-forward');
-const btnRefresh  = document.getElementById('btn-refresh');
-const btnMobile   = document.getElementById('btn-mobile');
-const btnPin      = document.getElementById('btn-pin');
-const btnNewTab   = document.getElementById('btn-new-tab');
-const btnAddSite  = document.getElementById('btn-add-site');
-const sitesList   = document.getElementById('sites-list');
-const sitesEmpty  = document.getElementById('sites-empty');
+const frameShell      = document.getElementById('frame-shell');
+const urlInput        = document.getElementById('url-input');
+const btnBack         = document.getElementById('btn-back');
+const btnForward      = document.getElementById('btn-forward');
+const btnRefresh      = document.getElementById('btn-refresh');
+const btnMobile       = document.getElementById('btn-mobile');
+const btnPin          = document.getElementById('btn-pin');
+const btnNewTab       = document.getElementById('btn-new-tab');
+const btnAddSite      = document.getElementById('btn-add-site');
+const btnToggleView   = document.getElementById('btn-toggle-view');
+const toggleViewIcon  = document.getElementById('toggle-view-icon');
+const sitesList       = document.getElementById('sites-list');
+const sitesEmpty      = document.getElementById('sites-empty');
+
+// SVG paths for the view-toggle button
+const ICON_GRID   = 'M4 8h4V4H4v4zm6 12h4v-4h-4v4zm-6 0h4v-4H4v4zm0-6h4v-4H4v4zm6 0h4v-4h-4v4zm6-10v4h4V4h-4zm-6 4h4V4h-4v4zm6 6h4v-4h-4v4zm0 6h4v-4h-4v4z';
+const ICON_BROWSER = 'M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V8h16v10z';
 
 // ── Frame pool ─────────────────────────────────────────
 // Each slot (keyed by hostname or 'main') owns one <iframe>.
@@ -26,8 +32,20 @@ let activeKey = null;
 let currentTabId = null;
 let isMobile     = false;
 let isPinned     = false;
+let isIconOnly   = false;
 
 function tabUrlKey(id) { return id ? `tabUrl_${id}` : 'tabUrl_default'; }
+
+// ── Default sites (always shown, cannot be removed) ────
+const DEFAULT_SITES = [
+  {
+    url:       'https://welovephuket.com',
+    hostname:  'welovephuket.com',
+    title:     'We Love Phuket',
+    favicon:   'https://www.google.com/s2/favicons?domain=welovephuket.com&sz=32',
+    isDefault: true
+  }
+];
 
 // ── Init ───────────────────────────────────────────────
 (async function init() {
@@ -37,13 +55,15 @@ function tabUrlKey(id) { return id ? `tabUrl_${id}` : 'tabUrl_default'; }
   const stored = await chrome.storage.local.get({
     [tabUrlKey(currentTabId)]: 'https://www.google.com',
     mobileMode: false,
-    pinned:     false
+    pinned:     false,
+    viewMode:   'page'
   });
 
   isMobile = stored.mobileMode;
   isPinned = stored.pinned;
   applyMobileState(false);
   applyPinState();
+  applyViewMode(stored.viewMode, false);
 
   await renderSitesBar();
   switchToSlot('main', stored[tabUrlKey(currentTabId)]);
@@ -209,6 +229,25 @@ btnPin.addEventListener('click', () => {
   chrome.runtime.sendMessage({ type: 'SET_PINNED', enabled: isPinned });
 });
 
+// ── View mode toggle (page ↔ icon grid) ────────────────
+function applyViewMode(mode, save = true) {
+  isIconOnly = mode === 'icons';
+  document.body.classList.toggle('icon-only', isIconOnly);
+  btnToggleView.classList.toggle('active', isIconOnly);
+  if (isIconOnly) {
+    toggleViewIcon.querySelector('path').setAttribute('d', ICON_BROWSER);
+    btnToggleView.title = 'Switch to page view';
+  } else {
+    toggleViewIcon.querySelector('path').setAttribute('d', ICON_GRID);
+    btnToggleView.title = 'Switch to icon view';
+  }
+  if (save) chrome.storage.local.set({ viewMode: mode });
+}
+
+btnToggleView.addEventListener('click', () => {
+  applyViewMode(isIconOnly ? 'page' : 'icons');
+});
+
 // ── Open in new tab ────────────────────────────────────
 btnNewTab.addEventListener('click', () => {
   const slot = activeSlot();
@@ -222,56 +261,73 @@ function hostColor(hostname) {
   return `hsl(${((Math.abs(h) % 36) * 10)}, 55%, 42%)`;
 }
 
+function buildSiteItem(site, idx) {
+  const item = document.createElement('div');
+  item.className = 'site-item';
+  item.title = site.title;
+  item.dataset.hostname = site.hostname;
+  item.dataset.url      = site.url;
+  item.dataset.idx      = String(idx);
+  if (site.isDefault) item.dataset.default = 'true';
+
+  const img = document.createElement('img');
+  img.className = 'site-favicon';
+  img.src = site.favicon;
+  img.alt = '';
+  img.draggable = false;
+
+  const letter = document.createElement('span');
+  letter.className = 'site-letter';
+  letter.textContent = (site.hostname[0] || '?').toUpperCase();
+  letter.style.background = hostColor(site.hostname);
+  letter.style.display = 'none';
+  img.addEventListener('error', () => { img.style.display = 'none'; letter.style.display = 'flex'; });
+
+  // Label shown in icon-grid mode
+  const label = document.createElement('span');
+  label.className = 'site-label';
+  label.textContent = site.title;
+
+  // Green running dot
+  const dot = document.createElement('span');
+  dot.className = 'slot-dot';
+  dot.setAttribute('aria-hidden', 'true');
+
+  // Amber force-close (available for all sites including default)
+  const closeBtn = document.createElement('button');
+  closeBtn.className = 'site-close-btn';
+  closeBtn.innerHTML = '&times;';
+  closeBtn.title = 'Force close tab';
+  closeBtn.setAttribute('aria-label', `Force close ${site.title}`);
+  closeBtn.addEventListener('click', (e) => { e.stopPropagation(); forceCloseSlot(site.hostname); });
+
+  item.append(img, letter, label, dot, closeBtn);
+
+  // Click: switch slot; if in icon-only mode also switch to page view
+  item.addEventListener('click', () => {
+    switchToSlot(site.hostname, site.url);
+    if (isIconOnly) applyViewMode('page');
+  });
+
+  // Right-click: context menu (default sites can't be removed)
+  item.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    openCtxMenu(e.clientX, e.clientY, site.hostname, idx, site.url, !!site.isDefault);
+  });
+
+  return item;
+}
+
 async function renderSitesBar() {
   const { quickSites = [] } = await chrome.storage.local.get({ quickSites: [] });
   sitesList.querySelectorAll('.site-item').forEach(el => el.remove());
+
+  // DEFAULT_SITES first (index -1 so removeSite is never called on them)
+  DEFAULT_SITES.forEach(site => sitesList.appendChild(buildSiteItem(site, -1)));
+
+  // User-pinned sites after
   sitesEmpty.style.display = quickSites.length === 0 ? '' : 'none';
-
-  quickSites.forEach((site, idx) => {
-    const item = document.createElement('div');
-    item.className = 'site-item';
-    item.title = site.title;
-    item.dataset.hostname = site.hostname;
-    item.dataset.url = site.url;
-    item.dataset.idx = String(idx);
-
-    const img = document.createElement('img');
-    img.className = 'site-favicon';
-    img.src = site.favicon;
-    img.alt = '';
-    img.draggable = false;
-
-    const letter = document.createElement('span');
-    letter.className = 'site-letter';
-    letter.textContent = (site.hostname[0] || '?').toUpperCase();
-    letter.style.background = hostColor(site.hostname);
-    letter.style.display = 'none';
-    img.addEventListener('error', () => { img.style.display = 'none'; letter.style.display = 'flex'; });
-
-    // Green dot — visible when slot is alive
-    const dot = document.createElement('span');
-    dot.className = 'slot-dot';
-    dot.setAttribute('aria-hidden', 'true');
-
-    // Amber force-close button — hover only, kills iframe without removing from bar
-    const closeBtn = document.createElement('button');
-    closeBtn.className = 'site-close-btn';
-    closeBtn.innerHTML = '&times;';
-    closeBtn.title = 'Force close tab';
-    closeBtn.setAttribute('aria-label', `Force close ${site.title}`);
-    closeBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      forceCloseSlot(site.hostname);
-    });
-
-    item.append(img, letter, dot, closeBtn);
-    item.addEventListener('click', () => switchToSlot(site.hostname, site.url));
-    item.addEventListener('contextmenu', (e) => {
-      e.preventDefault();
-      openCtxMenu(e.clientX, e.clientY, site.hostname, idx, site.url);
-    });
-    sitesList.appendChild(item);
-  });
+  quickSites.forEach((site, idx) => sitesList.appendChild(buildSiteItem(site, idx)));
 
   updateActiveSite();
   updateSlotIndicators();
@@ -318,10 +374,14 @@ async function removeSite(idx, hostname) {
 const ctxMenu     = document.getElementById('site-ctx-menu');
 const ctxNewTab   = document.getElementById('ctx-new-tab');
 const ctxRemove   = document.getElementById('ctx-remove');
-let ctxTarget     = null; // { hostname, idx, url }
+const ctxSep      = ctxMenu.querySelector('.ctx-sep');
+let ctxTarget     = null; // { hostname, idx, url, isDefault }
 
-function openCtxMenu(x, y, hostname, idx, url) {
-  ctxTarget = { hostname, idx, url };
+function openCtxMenu(x, y, hostname, idx, url, isDefault = false) {
+  ctxTarget = { hostname, idx, url, isDefault };
+  // Default sites cannot be removed — hide those menu items
+  ctxSep.style.display    = isDefault ? 'none' : '';
+  ctxRemove.style.display = isDefault ? 'none' : '';
   ctxMenu.style.display = 'block';
   ctxMenu.style.left = x + 'px';
   ctxMenu.style.top  = y + 'px';

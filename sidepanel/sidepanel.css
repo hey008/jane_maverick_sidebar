@@ -392,3 +392,86 @@ body.mobile-mode .browser-frame.active {
   height: 844px;
   border-radius: 12px;
 }
+
+/* ── Icon-only mode ───────────────────────────────────── */
+
+/* Hide nav buttons and URL bar — nothing to browse in icon mode */
+body.icon-only .nav-btns,
+body.icon-only .url-wrap  { display: none; }
+
+/* Hide the browser frames */
+body.icon-only .frame-shell { display: none; }
+
+/* Expand the sites bar to fill the full panel width */
+body.icon-only .sites-bar {
+  width: 100%;
+  border-left: none;
+  border-top: 1px solid var(--border);
+  flex-direction: column;
+}
+
+/* Wrap icons in a grid */
+body.icon-only .sites-list {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  overflow-y: auto;
+  overflow-x: hidden;
+  gap: 4px;
+  padding: 10px 8px;
+}
+
+/* Larger icon tiles */
+body.icon-only .site-item {
+  width: 58px;
+  height: 66px;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+  border-radius: 10px;
+}
+
+body.icon-only .site-favicon,
+body.icon-only .site-letter {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  font-size: 15px;
+}
+
+/* Site name label — hidden in normal mode, shown in icon mode */
+.site-label { display: none; }
+
+body.icon-only .site-label {
+  display: block;
+  font-size: 9px;
+  line-height: 1.2;
+  text-align: center;
+  width: 54px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+  pointer-events: none;
+}
+
+/* Active indicator becomes a bottom underline in grid mode */
+body.icon-only .site-item.active::after {
+  top: auto;
+  left: 50%;
+  bottom: 3px;
+  transform: translateX(-50%);
+  width: 20px;
+  height: 2px;
+}
+
+/* "+" add tile matches icon size */
+body.icon-only .sites-add-btn {
+  width: 58px;
+  height: 66px;
+  margin: 0;
+  border-top: none !important;
+  border-radius: 10px !important;
+}
+body.icon-only .sites-add-btn svg { width: 20px; height: 20px; }
