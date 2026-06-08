@@ -357,7 +357,7 @@ async function removeSite(idx, hostname) {
 
 // ── Manage panel ───────────────────────────────────────
 
-// Drag-and-drop state
+// Drag-and-drop state — managed by container-level delegation
 let _dragSrcIdx = null;
 let _dragOverEl = null;
 
@@ -368,55 +368,67 @@ function _clearDragOver() {
   }
 }
 
+// Container-level drag delegation (attached once, survives re-renders)
+manageList.addEventListener('dragover', (e) => {
+  e.preventDefault();
+  if (_dragSrcIdx === null) return;
+  const row = e.target.closest('[data-drag-idx]');
+  if (!row) return;
+  if (_dragOverEl !== row) { _clearDragOver(); _dragOverEl = row; }
+  const { top, height } = row.getBoundingClientRect();
+  const above = e.clientY < top + height / 2;
+  row.classList.toggle('drag-above', above);
+  row.classList.toggle('drag-below', !above);
+});
+
+manageList.addEventListener('dragleave', (e) => {
+  // Only clear when pointer truly leaves the list, not just crosses into a child
+  if (!manageList.contains(e.relatedTarget)) _clearDragOver();
+});
+
+manageList.addEventListener('drop', async (e) => {
+  e.preventDefault();
+  const row = e.target.closest('[data-drag-idx]');
+  _clearDragOver();
+  if (!row || _dragSrcIdx === null) return;
+  const targetIdx = +row.dataset.dragIdx;
+  if (targetIdx === _dragSrcIdx) { _dragSrcIdx = null; return; }
+  const { top, height } = row.getBoundingClientRect();
+  const above = e.clientY < top + height / 2;
+  let insertAt = above ? targetIdx : targetIdx + 1;
+  const { quickSites = [] } = await chrome.storage.local.get({ quickSites: [] });
+  const [moved] = quickSites.splice(_dragSrcIdx, 1);
+  if (_dragSrcIdx < insertAt) insertAt--;
+  quickSites.splice(insertAt, 0, moved);
+  _dragSrcIdx = null;
+  await chrome.storage.local.set({ quickSites });
+  renderSitesBar();
+  renderManagePanel();
+});
+
+// Attach drag only to the row, activated exclusively via the handle
 function _attachDrag(el, arrayIdx) {
-  el.draggable = true;
+  el.dataset.dragIdx = String(arrayIdx);
   el.addEventListener('dragstart', (e) => {
     _dragSrcIdx = arrayIdx;
     e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', ''); // required for Firefox
     requestAnimationFrame(() => el.classList.add('dragging'));
   });
   el.addEventListener('dragend', () => {
+    el.draggable = false;
     el.classList.remove('dragging');
     _clearDragOver();
     _dragSrcIdx = null;
   });
-  el.addEventListener('dragover', (e) => {
-    if (_dragSrcIdx === null) return;
-    e.preventDefault();
-    if (_dragOverEl !== el) { _clearDragOver(); _dragOverEl = el; }
-    const { top, height } = el.getBoundingClientRect();
-    const above = e.clientY < top + height / 2;
-    el.classList.toggle('drag-above', above);
-    el.classList.toggle('drag-below', !above);
-  });
-  el.addEventListener('dragleave', (e) => {
-    if (!el.contains(e.relatedTarget)) {
-      el.classList.remove('drag-above', 'drag-below');
-      if (_dragOverEl === el) _dragOverEl = null;
-    }
-  });
-  el.addEventListener('drop', async (e) => {
-    e.preventDefault();
-    el.classList.remove('drag-above', 'drag-below');
-    if (_dragSrcIdx === null || _dragSrcIdx === arrayIdx) return;
-    const { top, height } = el.getBoundingClientRect();
-    const above = e.clientY < top + height / 2;
-    let insertAt = above ? arrayIdx : arrayIdx + 1;
-    const { quickSites = [] } = await chrome.storage.local.get({ quickSites: [] });
-    const [moved] = quickSites.splice(_dragSrcIdx, 1);
-    if (_dragSrcIdx < insertAt) insertAt--;
-    quickSites.splice(insertAt, 0, moved);
-    _dragSrcIdx = null;
-    await chrome.storage.local.set({ quickSites });
-    renderSitesBar();
-    renderManagePanel();
-  });
 }
 
-function _makeDragHandle() {
+function _makeDragHandle(row) {
   const h = document.createElement('span');
   h.className = 'manage-drag-handle';
   h.innerHTML = '<svg viewBox="0 0 24 24"><path d="M11 18c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2zm-2-8c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0-6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm6 4c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>';
+  // Drag starts only when the user grabs the handle, not when clicking buttons
+  h.addEventListener('pointerdown', () => { row.draggable = true; });
   return h;
 }
 
@@ -473,7 +485,7 @@ function buildManageSepRow(arrayIdx) {
     renderManagePanel();
   });
 
-  row.append(_makeDragHandle(), label, removeBtn);
+  row.append(_makeDragHandle(row), label, removeBtn);
   _attachDrag(row, arrayIdx);
   return row;
 }
@@ -522,7 +534,7 @@ function buildManageRow(site, arrayIdx) {
       renderManagePanel();
     });
 
-    row.append(_makeDragHandle(), img, letter, title, editBtn, removeBtn);
+    row.append(_makeDragHandle(row), img, letter, title, editBtn, removeBtn);
     _attachDrag(row, arrayIdx);
   }
 
