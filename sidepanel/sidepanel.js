@@ -362,10 +362,9 @@ async function removeSite(idx, hostname) {
 // ── Manage panel ───────────────────────────────────────
 
 // Drag-and-drop state — managed by container-level delegation
-let _dragSrcIdx = null;
-let _dragOverEl = null;
-let _defaultSitesExpanded = true;
-let _showDefaultInBar     = true;
+let _dragSrcIdx       = null;
+let _dragOverEl       = null;
+let _showDefaultInBar = true;
 
 function _clearDragOver() {
   if (_dragOverEl) {
