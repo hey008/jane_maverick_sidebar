@@ -524,11 +524,74 @@ body {
   flex-shrink: 0;
 }
 
+/* Drag handle */
+.manage-drag-handle {
+  color: var(--text-muted);
+  cursor: grab;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 0 4px 0 0;
+  opacity: 0.45;
+}
+.manage-drag-handle:active { cursor: grabbing; }
+.manage-drag-handle svg { width: 14px; height: 14px; fill: currentColor; pointer-events: none; }
+
+/* Drag states */
+.manage-item.dragging  { opacity: 0.35; }
+.manage-item.drag-above { box-shadow: inset 0  2px 0 var(--accent); }
+.manage-item.drag-below { box-shadow: inset 0 -2px 0 var(--accent); }
+
+/* Separator row in manage panel */
+.manage-sep-item { padding: 5px 10px 5px 14px; }
+
+.manage-sep-label {
+  flex: 1;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-style: italic;
+  letter-spacing: 0.02em;
+}
+
+.manage-sep-remove {
+  width: 28px;
+  height: 28px;
+  border-radius: 5px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 0;
+}
+.manage-sep-remove:hover { background: var(--btn-hover); color: var(--text); }
+.manage-sep-remove svg   { width: 14px; height: 14px; fill: currentColor; }
+
 .manage-footer {
   padding: 10px 14px;
   border-top: 1px solid var(--border);
   flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
+
+.manage-add-sep-btn {
+  width: 100%;
+  padding: 6px 12px;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+}
+.manage-add-sep-btn:hover { background: var(--btn-hover); color: var(--text); }
 
 .manage-reset-btn {
   width: 100%;

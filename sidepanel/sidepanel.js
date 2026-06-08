@@ -15,6 +15,7 @@ const managePanel     = document.getElementById('manage-panel');
 const manageList      = document.getElementById('manage-list');
 const btnManageClose  = document.getElementById('btn-manage-close');
 const btnResetSites   = document.getElementById('btn-reset-sites');
+const btnAddSeparator = document.getElementById('btn-add-separator');
 
 // ── Frame pool ─────────────────────────────────────────
 // Each slot (keyed by hostname or 'main') owns one <iframe>.
@@ -355,6 +356,69 @@ async function removeSite(idx, hostname) {
 
 // ── Manage panel ───────────────────────────────────────
 
+// Drag-and-drop state
+let _dragSrcIdx = null;
+let _dragOverEl = null;
+
+function _clearDragOver() {
+  if (_dragOverEl) {
+    _dragOverEl.classList.remove('drag-above', 'drag-below');
+    _dragOverEl = null;
+  }
+}
+
+function _attachDrag(el, arrayIdx) {
+  el.draggable = true;
+  el.addEventListener('dragstart', (e) => {
+    _dragSrcIdx = arrayIdx;
+    e.dataTransfer.effectAllowed = 'move';
+    requestAnimationFrame(() => el.classList.add('dragging'));
+  });
+  el.addEventListener('dragend', () => {
+    el.classList.remove('dragging');
+    _clearDragOver();
+    _dragSrcIdx = null;
+  });
+  el.addEventListener('dragover', (e) => {
+    if (_dragSrcIdx === null) return;
+    e.preventDefault();
+    if (_dragOverEl !== el) { _clearDragOver(); _dragOverEl = el; }
+    const { top, height } = el.getBoundingClientRect();
+    const above = e.clientY < top + height / 2;
+    el.classList.toggle('drag-above', above);
+    el.classList.toggle('drag-below', !above);
+  });
+  el.addEventListener('dragleave', (e) => {
+    if (!el.contains(e.relatedTarget)) {
+      el.classList.remove('drag-above', 'drag-below');
+      if (_dragOverEl === el) _dragOverEl = null;
+    }
+  });
+  el.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    el.classList.remove('drag-above', 'drag-below');
+    if (_dragSrcIdx === null || _dragSrcIdx === arrayIdx) return;
+    const { top, height } = el.getBoundingClientRect();
+    const above = e.clientY < top + height / 2;
+    let insertAt = above ? arrayIdx : arrayIdx + 1;
+    const { quickSites = [] } = await chrome.storage.local.get({ quickSites: [] });
+    const [moved] = quickSites.splice(_dragSrcIdx, 1);
+    if (_dragSrcIdx < insertAt) insertAt--;
+    quickSites.splice(insertAt, 0, moved);
+    _dragSrcIdx = null;
+    await chrome.storage.local.set({ quickSites });
+    renderSitesBar();
+    renderManagePanel();
+  });
+}
+
+function _makeDragHandle() {
+  const h = document.createElement('span');
+  h.className = 'manage-drag-handle';
+  h.innerHTML = '<svg viewBox="0 0 24 24"><path d="M11 18c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2zm-2-8c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0-6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm6 4c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>';
+  return h;
+}
+
 function openManagePanel() {
   renderManagePanel();
   managePanel.hidden = false;
@@ -370,29 +434,50 @@ async function renderManagePanel() {
   const { quickSites = [] } = await chrome.storage.local.get({ quickSites: [] });
   manageList.innerHTML = '';
 
-  // Default sites (locked)
+  // Default sites — locked, not draggable
   DEFAULT_SITES.forEach(site => manageList.appendChild(buildManageRow(site, -1)));
 
-  // Separator between default and user sites
-  manageList.appendChild(buildManageSeparator());
+  // Visual divider (not interactive)
+  const divider = document.createElement('div');
+  divider.className = 'manage-separator';
+  manageList.appendChild(divider);
 
-  // User quick sites (with separators)
+  // User items — both sites and separators are draggable
   quickSites.forEach((site, idx) => {
     if (site.type === 'separator') {
-      manageList.appendChild(buildManageSeparator());
+      manageList.appendChild(buildManageSepRow(idx));
     } else {
-      manageList.appendChild(buildManageRow({ ...site, idx }));
+      manageList.appendChild(buildManageRow({ ...site, idx }, idx));
     }
   });
 }
 
-function buildManageSeparator() {
-  const el = document.createElement('div');
-  el.className = 'manage-separator';
-  return el;
+function buildManageSepRow(arrayIdx) {
+  const row = document.createElement('div');
+  row.className = 'manage-item manage-sep-item';
+
+  const label = document.createElement('span');
+  label.className = 'manage-sep-label';
+  label.textContent = 'Separator';
+
+  const removeBtn = document.createElement('button');
+  removeBtn.className = 'manage-sep-remove';
+  removeBtn.title = 'Remove separator';
+  removeBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>';
+  removeBtn.addEventListener('click', async () => {
+    const { quickSites = [] } = await chrome.storage.local.get({ quickSites: [] });
+    quickSites.splice(arrayIdx, 1);
+    await chrome.storage.local.set({ quickSites });
+    renderSitesBar();
+    renderManagePanel();
+  });
+
+  row.append(_makeDragHandle(), label, removeBtn);
+  _attachDrag(row, arrayIdx);
+  return row;
 }
 
-function buildManageRow(site) {
+function buildManageRow(site, arrayIdx) {
   const row = document.createElement('div');
   row.className = 'manage-item';
 
@@ -436,7 +521,8 @@ function buildManageRow(site) {
       renderManagePanel();
     });
 
-    row.append(img, letter, title, editBtn, removeBtn);
+    row.append(_makeDragHandle(), img, letter, title, editBtn, removeBtn);
+    _attachDrag(row, arrayIdx);
   }
 
   return row;
@@ -518,6 +604,13 @@ btnSettings.addEventListener('click', () => {
 
 btnManageClose.addEventListener('click', closeManagePanel);
 btnResetSites.addEventListener('click', resetToDefaultSites);
+btnAddSeparator.addEventListener('click', async () => {
+  const { quickSites = [] } = await chrome.storage.local.get({ quickSites: [] });
+  quickSites.push({ type: 'separator' });
+  await chrome.storage.local.set({ quickSites });
+  renderSitesBar();
+  renderManagePanel();
+});
 
 // ── Context menu ───────────────────────────────────────
 const ctxMenu     = document.getElementById('site-ctx-menu');
