@@ -108,6 +108,14 @@ sidebar/
 
 ## Changelog
 
+### v1.2.0 — 2026-06-08
+
+- **Default site visibility toggle** — eye icon on the We Love Phuket row in Manage Sites shows/hides it in the pinned bar; preference persists across restarts
+- **Drag-to-reorder fix** — corrected an async race where `dragend` cleared the source index before the drop handler could use it, causing the wrong item to move
+- **Separator spacing** — increased padding around separator lines in the pinned bar for better visual grouping
+- **Inline URL editing** — pencil button on each user site in Manage Sites lets you edit the full URL in place
+- **Add / remove separators** in Manage Sites — separators are draggable and can be inserted or deleted freely
+
 ### v1.1.0 — 2026-06-08
 
 - **Manage Sites panel** — gear icon in toolbar opens an overlay listing all pinned sites; individual remove buttons per site; We Love Phuket default site is locked (cannot be removed)
