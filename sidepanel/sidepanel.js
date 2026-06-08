@@ -94,6 +94,7 @@ function switchToSlot(key, initialUrl) {
   urlInput.value = slot.url !== 'about:blank' ? slot.url : '';
   syncNavButtons();
   updateActiveSite();
+  updateSlotIndicators();
 }
 
 function activeSlot() { return slots.get(activeKey); }
@@ -231,6 +232,8 @@ async function renderSitesBar() {
     item.className = 'site-item';
     item.title = site.title;
     item.dataset.hostname = site.hostname;
+    item.dataset.url = site.url;
+    item.dataset.idx = String(idx);
 
     const img = document.createElement('img');
     img.className = 'site-favicon';
@@ -245,20 +248,40 @@ async function renderSitesBar() {
     letter.style.display = 'none';
     img.addEventListener('error', () => { img.style.display = 'none'; letter.style.display = 'flex'; });
 
-    const removeBtn = document.createElement('button');
-    removeBtn.className = 'site-remove';
-    removeBtn.innerHTML = '&times;';
-    removeBtn.title = 'Remove from sidebar';
-    removeBtn.setAttribute('aria-label', `Remove ${site.title}`);
-    removeBtn.addEventListener('click', (e) => { e.stopPropagation(); removeSite(idx, site.hostname); });
+    // Green dot — visible when slot is alive
+    const dot = document.createElement('span');
+    dot.className = 'slot-dot';
+    dot.setAttribute('aria-hidden', 'true');
 
-    item.append(img, letter, removeBtn);
-    // Clicking switches to this site's dedicated slot — other slots keep running
+    // Amber force-close button — hover only, kills iframe without removing from bar
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'site-close-btn';
+    closeBtn.innerHTML = '&times;';
+    closeBtn.title = 'Force close tab';
+    closeBtn.setAttribute('aria-label', `Force close ${site.title}`);
+    closeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      forceCloseSlot(site.hostname);
+    });
+
+    item.append(img, letter, dot, closeBtn);
     item.addEventListener('click', () => switchToSlot(site.hostname, site.url));
+    item.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      openCtxMenu(e.clientX, e.clientY, site.hostname, idx, site.url);
+    });
     sitesList.appendChild(item);
   });
 
   updateActiveSite();
+  updateSlotIndicators();
+}
+
+/** Mark which site icons have a live iframe slot */
+function updateSlotIndicators() {
+  sitesList.querySelectorAll('.site-item').forEach(item => {
+    item.classList.toggle('slot-running', slots.has(item.dataset.hostname));
+  });
 }
 
 function updateActiveSite() {
@@ -270,19 +293,64 @@ function updateActiveSite() {
   });
 }
 
+/** Destroy the iframe for a slot but keep its icon in the bar */
+function forceCloseSlot(hostname) {
+  const slot = slots.get(hostname);
+  if (!slot) return;
+  slot.iframe.remove();
+  slots.delete(hostname);
+  if (activeKey === hostname) switchToSlot('main', 'https://www.google.com');
+  updateSlotIndicators();
+}
+
+/** Permanently remove site from bar and destroy its slot */
 async function removeSite(idx, hostname) {
   const { quickSites = [] } = await chrome.storage.local.get({ quickSites: [] });
   quickSites.splice(idx, 1);
   await chrome.storage.local.set({ quickSites });
-
-  // Destroy the slot's iframe to free its resources
   const slot = slots.get(hostname);
   if (slot) { slot.iframe.remove(); slots.delete(hostname); }
-
-  // If this was the active slot, fall back to main
   if (activeKey === hostname) switchToSlot('main', 'https://www.google.com');
   renderSitesBar();
 }
+
+// ── Context menu ───────────────────────────────────────
+const ctxMenu     = document.getElementById('site-ctx-menu');
+const ctxNewTab   = document.getElementById('ctx-new-tab');
+const ctxRemove   = document.getElementById('ctx-remove');
+let ctxTarget     = null; // { hostname, idx, url }
+
+function openCtxMenu(x, y, hostname, idx, url) {
+  ctxTarget = { hostname, idx, url };
+  ctxMenu.style.display = 'block';
+  ctxMenu.style.left = x + 'px';
+  ctxMenu.style.top  = y + 'px';
+  // Clamp so the menu doesn't overflow the panel
+  requestAnimationFrame(() => {
+    const r = ctxMenu.getBoundingClientRect();
+    if (r.right  > window.innerWidth)  ctxMenu.style.left = (x - r.width)  + 'px';
+    if (r.bottom > window.innerHeight) ctxMenu.style.top  = (y - r.height) + 'px';
+  });
+}
+
+function closeCtxMenu() {
+  ctxMenu.style.display = 'none';
+  ctxTarget = null;
+}
+
+ctxNewTab.addEventListener('click', () => {
+  if (ctxTarget) chrome.tabs.create({ url: ctxTarget.url });
+  closeCtxMenu();
+});
+
+ctxRemove.addEventListener('click', () => {
+  if (ctxTarget) removeSite(ctxTarget.idx, ctxTarget.hostname);
+  closeCtxMenu();
+});
+
+// Close context menu on any click outside it
+document.addEventListener('click',       (e) => { if (!ctxMenu.contains(e.target)) closeCtxMenu(); });
+document.addEventListener('contextmenu', (e) => { if (!ctxMenu.contains(e.target)) closeCtxMenu(); });
 
 async function addCurrentSite() {
   const slot = activeSlot();

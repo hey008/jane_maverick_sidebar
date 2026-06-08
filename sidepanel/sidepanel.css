@@ -224,16 +224,32 @@ body {
   flex-shrink: 0;
 }
 
-/* × remove button — visible on hover */
-.site-remove {
+/* Green dot — slot is alive (running in background or active) */
+.slot-dot {
   position: absolute;
-  top: -4px;
-  right: -4px;
+  top: 1px;
+  right: 1px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #22c55e;
+  border: 1.5px solid var(--bg);
+  pointer-events: none;
+  display: none;
+  z-index: 4;
+}
+.site-item.slot-running .slot-dot { display: block; }
+
+/* Force-close button — amber ×, replaces dot on hover, only when slot is running */
+.site-close-btn {
+  position: absolute;
+  top: 0px;
+  right: 0px;
   width: 14px;
   height: 14px;
   border-radius: 50%;
   border: 1.5px solid var(--bg);
-  background: #c42b1c;
+  background: #f59e0b;
   color: #fff;
   font-size: 9px;
   line-height: 1;
@@ -244,7 +260,42 @@ body {
   padding: 0;
   z-index: 5;
 }
-.site-item:hover .site-remove { display: flex; }
+.site-item.slot-running:hover .slot-dot       { display: none; }
+.site-item.slot-running:hover .site-close-btn { display: flex; }
+
+/* ── Context menu (right-click on site icon) ──────────── */
+.site-ctx-menu {
+  position: fixed;
+  z-index: 9999;
+  min-width: 170px;
+  padding: 4px 0;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+  display: none;
+}
+
+.site-ctx-menu button {
+  display: block;
+  width: 100%;
+  padding: 7px 14px;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--text);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.site-ctx-menu button:hover { background: var(--btn-hover); }
+.site-ctx-menu button.ctx-danger { color: #c42b1c; }
+.site-ctx-menu .ctx-sep {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
 
 /* "+" add button — bottom of the right column */
 .sites-add-btn {
